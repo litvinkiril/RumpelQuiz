@@ -17,7 +17,7 @@
       "settings": {
         "clangd.arguments": [
           "--background-index",
-          "--compile-commands-dir=.vscode",
+          "--compile-commands-dir=build-debug",
           "--clang-tidy",
           "--completion-style=detailed",
           "--header-insertion=never"

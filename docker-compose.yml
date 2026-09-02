@@ -1,0 +1,25 @@
+name: rumpelquiz-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: rumpelquiz
+      POSTGRES_USER: rumpelquiz
+      POSTGRES_PASSWORD: rumpelquiz_dev
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - rumpelquiz-postgres-data:/var/lib/postgresql/data
+      - ./postgresql/schemas/db_1.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./postgresql/data/initial_data.sql:/docker-entrypoint-initdb.d/02-initial-data.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rumpelquiz -d rumpelquiz"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+volumes:
+  rumpelquiz-postgres-data:
+

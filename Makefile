@@ -29,10 +29,16 @@ $(addprefix test-, $(PRESETS)): test-%: build-%/CMakeCache.txt
 	cmake --build build-$* -j $(NPROCS)
 	cd build-$* && ((test -t 1 && GTEST_COLOR=1 PYTEST_ADDOPTS="--color=yes" ctest -V) || ctest -V)
 
-# Start the service (via testsuite service runner)
+# Start the service directly with the persistent development database.
+# Tests keep using the testsuite runner and configs/config_vars.testing.yaml.
 .PHONY: $(addprefix start-, $(PRESETS))
-$(addprefix start-, $(PRESETS)): start-%:
-	cmake --build build-$* -v --target start-$(PROJECT_NAME)
+$(addprefix start-, $(PRESETS)): start-%: build-%
+	@set -a; \
+	if [ -f .env ]; then . ./.env; fi; \
+	set +a; \
+	exec ./build-$*/$(PROJECT_NAME) \
+		--config configs/static_config.yaml \
+		--config_vars configs/config_vars.yaml
 
 # Cleanup data
 .PHONY: $(addprefix clean-, $(PRESETS))

@@ -14,6 +14,8 @@
 
 #include <hello.hpp>
 #include <hello_postgres.hpp> 
+#include "auth/handlers/register.hpp"
+#include "auth/services/registration_service.hpp"
 
 int main(int argc, char* argv[]) {
     auto component_list =
@@ -27,6 +29,8 @@ int main(int argc, char* argv[]) {
             .Append<RumpelQuiz::Hello>()
             .Append<userver::components::Postgres>("postgres-db-1")
             .Append<RumpelQuiz::HelloPostgres>()
+            .Append<RumpelQuiz::RegistrationService>()
+            .Append<RumpelQuiz::RegisterHandler>()
         ;
 
     return userver::utils::DaemonMain(argc, argv, component_list);

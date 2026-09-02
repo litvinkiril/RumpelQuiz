@@ -1,0 +1,9 @@
+{
+  "configurations": [
+    {
+      "compileCommands": "${workspaceFolder}/build-debug/compile_commands.json",
+      "name": "CMake"
+    }
+  ],
+  "version": 4
+}

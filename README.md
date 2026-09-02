@@ -3,6 +3,68 @@
 Template of a C++ service that uses [userver framework](https://github.com/userver-framework/userver).
 
 
+## Local development PostgreSQL
+
+The persistent development database is separate from the temporary PostgreSQL
+instance created by testsuite. Docker Compose stores its data in the named
+volume `rumpelquiz-postgres-data` and initializes it from the existing files in
+`postgresql/schemas` and `postgresql/data` on the first start.
+
+Port `5433` is used on the Windows host because the standard port `5432` is
+already occupied. Start the database from PowerShell in the project directory:
+
+```console
+docker compose up -d --wait postgres
+docker compose ps
+```
+
+Open the Dev Container and start the backend there:
+
+```console
+make build-debug
+make start-debug
+```
+
+`make start-debug` starts the binary directly with `configs/config_vars.yaml`.
+The PostgreSQL connection can be overridden without changing C++ code:
+
+```console
+DB_CONNECTION='postgresql://rumpelquiz:rumpelquiz_dev@host.docker.internal:5433/rumpelquiz' make start-debug
+```
+
+The default development connection is:
+
+| Setting | Value |
+| --- | --- |
+| Host from Windows / pgAdmin | `localhost` |
+| Host from the Dev Container | `host.docker.internal` |
+| Port | `5433` |
+| Database | `rumpelquiz` |
+| Username | `rumpelquiz` |
+| Password | `rumpelquiz_dev` |
+
+Connection checks:
+
+```console
+docker compose exec postgres pg_isready -U rumpelquiz -d rumpelquiz
+docker compose exec postgres psql -U rumpelquiz -d rumpelquiz -c "SELECT current_database(), current_user;"
+curl http://localhost:8080/ping
+curl http://localhost:8080/hello
+curl http://localhost:8080/hello-postgres
+curl 'http://localhost:8080/hello-postgres?name=DevCheck'
+```
+
+Stop PostgreSQL without deleting development data:
+
+```console
+docker compose down
+```
+
+To intentionally reset the development database, run `docker compose down -v`
+and start it again. This deletes the development volume; it does not affect the
+separate testsuite database.
+
+
 ## Download and Build
 
 To create your own userver-based service follow the following steps:

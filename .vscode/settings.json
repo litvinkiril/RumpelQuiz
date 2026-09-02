@@ -1,0 +1,13 @@
+{
+  "clangd.arguments": [
+    "--background-index",
+    "--compile-commands-dir=build-debug",
+    "--clang-tidy",
+    "--completion-style=detailed",
+    "--header-insertion=never"
+  ],
+  "cmake.automaticReconfigure": false,
+  "cmake.configureOnEdit": false,
+  "cmake.configureOnOpen": false,
+  "C_Cpp.intelliSenseEngine": "disabled"
+}

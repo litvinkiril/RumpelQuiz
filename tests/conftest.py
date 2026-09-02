@@ -7,6 +7,19 @@ pytest_plugins = [
     'pytest_userver.plugins.postgresql', 
 ]
 
+USERVER_CONFIG_HOOKS = ['postbox_mock_url']
+
+
+@pytest.fixture(scope='session')
+def postbox_mock_url(mockserver_info):
+    def patch_config(config_yaml, config_vars):
+        components = config_yaml['components_manager']['components']
+        components['postbox-client']['url'] = mockserver_info.url(
+            'v2/email/outbound-emails',
+        )
+
+    return patch_config
+
 
 
 

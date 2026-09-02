@@ -8,3 +8,10 @@ server-port: 8080
 
 # change to URI of your postgres database
 pg-connection: postgresql://testsuite@localhost:15433/RumpelQuiz_db_1
+
+# Tests do not send real email and do not require Postbox credentials.
+postbox-key-id: testsuite-key-id
+postbox-secret-key: testsuite-secret-key
+postbox-from-email: testsuite@example.com
+postbox-url: http://localhost/unused
+email-send-enabled: true

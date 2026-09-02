@@ -21,6 +21,9 @@ endif()
 
 userver_setup_environment()
 
+find_package(OpenSSL REQUIRED)
+find_library(CRYPT_LIBRARY crypt REQUIRED)
+
 # Common sources
 include_directories(src)
 
@@ -29,11 +32,22 @@ add_library(
     src/greeting.cpp #
     src/hello.cpp #
     src/hello_postgres.cpp
+    src/auth/handlers/register.cpp
+    src/auth/password_hasher.cpp
+    src/auth/repositories/user_repository.cpp
+    src/auth/repositories/verification_repository.cpp
+    src/auth/services/registration_service.cpp
+    src/auth/verification_code_service.cpp
+    src/email/aws_signature_v4.cpp
+    src/email/postbox_client.cpp
+    src/email/email_service.cpp
 )
 target_link_libraries(
     ${PROJECT_NAME}_objs
     PUBLIC userver::core #
            userver::postgresql
+           OpenSSL::Crypto
+           ${CRYPT_LIBRARY}
 )
 
 
