@@ -5,7 +5,7 @@
 #include <userver/components/component_base.hpp>
 #include <userver/storages/postgres/cluster.hpp>
 
-#include "auth/models/register_result.hpp"
+#include "auth/models/email_verify_result.hpp"
 #include "auth/services/password_hasher.hpp"
 #include "auth/repositories/user_repository.hpp"
 #include "auth/repositories/verification_repository.hpp"
@@ -13,33 +13,27 @@
 #include "email/email_service.hpp"
 
 namespace RumpelQuiz {
-
-class RegistrationService final
+    class EmailVerificationService final
     : public userver::components::ComponentBase {
 public:
     static constexpr std::string_view kName =
-        "registration-service";
+        "email-verify-service";
 
-    RegistrationService(
+    EmailVerificationService(
         const userver::components::ComponentConfig& config,
         const userver::components::ComponentContext& context
     );
 
-    RegisterResult Register(
-        std::string_view email,
-        std::string_view password,
-        std::string_view password_confirmation
+    EmailVerifyResult Verify(
+        const boost::uuids::uuid& verification_id,
+        std::string_view code
     ) const;
 
 private:
     userver::storages::postgres::ClusterPtr pg_;
-    EmailService& email_service_;
-
-    UserRepository user_repository_;
-    VerificationRepository verification_repository_;
 
     PasswordHasher password_hasher_;
-    VerificationCodeService verification_code_service_;
+    UserRepository user_repository_;
+    VerificationRepository verification_repository_;
 };
-
 }

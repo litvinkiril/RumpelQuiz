@@ -11,6 +11,13 @@ USERVER_CONFIG_HOOKS = ['postbox_mock_url']
 
 
 @pytest.fixture(scope='session')
+def service_env():
+    return {
+        'JWT_SECRET': 'testsuite-jwt-secret-that-is-at-least-32-characters',
+    }
+
+
+@pytest.fixture(scope='session')
 def postbox_mock_url(mockserver_info):
     def patch_config(config_yaml, config_vars):
         components = config_yaml['components_manager']['components']

@@ -7,6 +7,8 @@
 #include <userver/storages/postgres/transaction.hpp>
 #include <userver/storages/postgres/io/chrono.hpp>
 
+#include "../models/verify_code.hpp"
+
 namespace RumpelQuiz {
 
 class VerificationRepository {
@@ -17,6 +19,17 @@ public:
         std::string_view code_hash,
         userver::storages::postgres::TimePointTz expires_at
     ) const;
+
+    VerifyCodeData GetCode(
+        userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid verification_id
+    ) const;
+
+    void DeleteCode(
+        userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid verification_id
+    ) const;
+    
 };
 
 }

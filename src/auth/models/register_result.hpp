@@ -17,5 +17,4 @@ enum class RegisterError {
 
 using RegisterResult =
     std::variant<RegistrationSuccess, RegisterError>;
-
 }

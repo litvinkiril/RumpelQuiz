@@ -32,12 +32,19 @@ add_library(
     src/greeting.cpp #
     src/hello.cpp #
     src/hello_postgres.cpp
+    src/auth/services/jwt_service.cpp
+    src/auth/middleware/jwt_auth_checker.cpp
+    src/auth/handlers/current_user.cpp
+    src/auth/handlers/login.cpp
     src/auth/handlers/register.cpp
-    src/auth/password_hasher.cpp
+    src/auth/handlers/verify_email.cpp
+    src/auth/services/password_hasher.cpp
     src/auth/repositories/user_repository.cpp
     src/auth/repositories/verification_repository.cpp
     src/auth/services/registration_service.cpp
-    src/auth/verification_code_service.cpp
+    src/auth/services/email_verification_service.cpp
+    src/auth/services/login_service.cpp
+    src/auth/services/verification_code_service.cpp
     src/email/aws_signature_v4.cpp
     src/email/postbox_client.cpp
     src/email/email_service.cpp
@@ -56,7 +63,11 @@ add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_objs)
 
 # Unit Tests
-add_executable(${PROJECT_NAME}_unittest src/greeting_test.cpp)
+add_executable(
+    ${PROJECT_NAME}_unittest
+    src/greeting_test.cpp
+    tests/unit/auth/jwt_service_test.cpp
+)
 target_link_libraries(${PROJECT_NAME}_unittest PRIVATE ${PROJECT_NAME}_objs userver::utest)
 add_google_tests(${PROJECT_NAME}_unittest)
 

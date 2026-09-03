@@ -65,4 +65,18 @@ namespace RumpelQuiz {
             user_id
         );
     }
+
+    void UserRepository::VerifyUser(
+        userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& user_id
+    ) const {
+        transaction.Execute(
+            R"(
+                UPDATE auth.users
+                SET email_verified = TRUE
+                WHERE id = $1
+            )",
+            user_id
+        );
+    }
 }

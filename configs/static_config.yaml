@@ -74,6 +74,26 @@ components_manager:
             task_processor: main-task-processor
             request_body_size_log_limit: 0
 
+        handler-auth-verify-email:
+            path: /v1/auth/verify-email
+            method: POST
+            task_processor: main-task-processor
+            request_body_size_log_limit: 0
+
+        handler-auth-login: 
+            path: /v1/auth/login
+            method: POST
+            task_processor: main-task-processor
+            request_body_size_log_limit: 0
+
+        handler-auth-current-user:
+            path: /v1/auth/me
+            method: GET
+            task_processor: main-task-processor
+            auth:
+                types:
+                  - jwt
+
         postgres-db-1:
             dbconnection: $pg-connection
             dbconnection#env: DB_CONNECTION
@@ -95,3 +115,11 @@ components_manager:
             send-enabled: $email-send-enabled
 
         registration-service: {}
+
+        email-verify-service: {}
+
+        login-service: {}
+
+        jwt-service:
+            secret#env: JWT_SECRET
+            access-token-ttl-seconds: $jwt-access-token-ttl-seconds

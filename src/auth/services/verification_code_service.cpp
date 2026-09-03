@@ -8,7 +8,7 @@
 
 #include <openssl/rand.h>
 
-#include "auth/password_hasher.hpp"
+#include "auth/services/password_hasher.hpp"
 
 namespace RumpelQuiz {
 

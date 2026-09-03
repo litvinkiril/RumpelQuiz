@@ -29,6 +29,11 @@ public:
         const boost::uuids::uuid& user_id,
         std::string_view password_hash
     ) const;
+
+    void VerifyUser(
+        userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& user_id
+    ) const;
 };
 
 }

@@ -12,3 +12,7 @@ pg-connection: postgresql://rumpelquiz:rumpelquiz_dev@host.docker.internal:5433/
 
 postbox-url: https://postbox.cloud.yandex.net/v2/email/outbound-emails
 email-send-enabled: false
+
+# JWT_SECRET must be provided through .env for local development.
+jwt-secret: ''
+jwt-access-token-ttl-seconds: 3600
