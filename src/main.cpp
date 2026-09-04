@@ -7,25 +7,25 @@
 #include <userver/server/handlers/auth/auth_checker_factory.hpp>
 #include <userver/server/handlers/ping.hpp>
 #include <userver/server/handlers/tests_control.hpp>
-#include <userver/testsuite/testsuite_support.hpp>
-
 #include <userver/storages/postgres/component.hpp>
-
+#include <userver/testsuite/testsuite_support.hpp>
 #include <userver/utils/daemon_run.hpp>
 
-#include <hello.hpp>
-#include <hello_postgres.hpp>
-#include "auth/handlers/current_user.hpp"
-#include "auth/handlers/register.hpp"
-#include "auth/handlers/verify_email.hpp"
-#include "auth/handlers/login.hpp"
-#include "auth/middleware/jwt_auth_checker.hpp"
-#include "auth/services/email_verification_service.hpp"
-#include "auth/services/jwt_service.hpp"
-#include "auth/services/registration_service.hpp"
-#include "auth/services/login_service.hpp"
-#include "email/email_service.hpp"
-#include "email/postbox_client.hpp"
+#include "auth/handlers/current_user/current_user_handler.hpp"
+#include "auth/handlers/email_verification/email_verification_handler.hpp"
+#include "auth/handlers/login/login_handler.hpp"
+#include "auth/handlers/registration/registration_handler.hpp"
+#include "auth/handlers/resend_code/resend_code_handler.hpp"
+#include "auth/middleware/jwt/jwt_auth_checker.hpp"
+#include "auth/services/email_verification/email_verification_service.hpp"
+#include "auth/services/jwt/jwt_service.hpp"
+#include "auth/services/login/login_service.hpp"
+#include "auth/services/registration/registration_service.hpp"
+#include "auth/services/resend_code/resend_code_service.hpp"
+#include "demo/handlers/hello/hello_handler.hpp"
+#include "demo/handlers/hello_postgres/hello_postgres_handler.hpp"
+#include "email/postbox/postbox_client.hpp"
+#include "email/service/email_service.hpp"
 
 int main(int argc, char* argv[]) {
   userver::server::handlers::auth::RegisterAuthCheckerFactory<
@@ -52,7 +52,8 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::CurrentUserHandler>()
           .Append<RumpelQuiz::LoginHandler>()
           .Append<RumpelQuiz::LoginService>()
-          ;
+          .Append<RumpelQuiz::ResendCodeService>()
+          .Append<RumpelQuiz::ResendCodeHandler>();
 
   return userver::utils::DaemonMain(argc, argv, component_list);
 }

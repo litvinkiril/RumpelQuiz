@@ -1,4 +1,4 @@
-#include "auth/services/jwt_service.hpp"
+#include "auth/services/jwt/jwt_service.hpp"
 
 #include <chrono>
 #include <string>

@@ -1,4 +1,4 @@
-def insert_user(pgsql, email, password):
+def insert_user(pgsql, email, password, email_verified=True):
     cursor = pgsql['db_1'].cursor()
     cursor.execute(
         '''
@@ -7,10 +7,10 @@ def insert_user(pgsql, email, password):
             password_hash,
             email_verified
         )
-        VALUES (%s, crypt(%s, gen_salt('bf')), TRUE)
+        VALUES (%s, crypt(%s, gen_salt('bf')), %s)
         RETURNING id::text
         ''',
-        (email, password),
+        (email, password, email_verified),
     )
     return cursor.fetchone()[0]
 
@@ -54,10 +54,10 @@ async def test_login_rejects_wrong_password(service_client, pgsql):
         json={'email': email, 'password': 'wrong-password'},
     )
 
-    assert response.status == 400
+    assert response.status == 401
     assert response.json() == {
         'success': False,
-        'error': 'passwords_do_not_match',
+        'error': 'invalid_credentials',
     }
 
 
@@ -70,8 +70,24 @@ async def test_login_rejects_unknown_email(service_client):
         },
     )
 
-    assert response.status == 400
+    assert response.status == 401
     assert response.json() == {
         'success': False,
-        'error': 'email_does_not_exist',
+        'error': 'invalid_credentials',
+    }
+
+
+async def test_login_rejects_unverified_email(service_client, pgsql):
+    email = 'login-unverified@example.invalid'
+    insert_user(pgsql, email, 'correct-password', email_verified=False)
+
+    response = await service_client.post(
+        '/v1/auth/login',
+        json={'email': email, 'password': 'correct-password'},
+    )
+
+    assert response.status == 401
+    assert response.json() == {
+        'success': False,
+        'error': 'invalid_credentials',
     }

@@ -29,25 +29,27 @@ include_directories(src)
 
 add_library(
     ${PROJECT_NAME}_objs OBJECT
-    src/greeting.cpp #
-    src/hello.cpp #
-    src/hello_postgres.cpp
-    src/auth/services/jwt_service.cpp
-    src/auth/middleware/jwt_auth_checker.cpp
-    src/auth/handlers/current_user.cpp
-    src/auth/handlers/login.cpp
-    src/auth/handlers/register.cpp
-    src/auth/handlers/verify_email.cpp
-    src/auth/services/password_hasher.cpp
-    src/auth/repositories/user_repository.cpp
-    src/auth/repositories/verification_repository.cpp
-    src/auth/services/registration_service.cpp
-    src/auth/services/email_verification_service.cpp
-    src/auth/services/login_service.cpp
-    src/auth/services/verification_code_service.cpp
-    src/email/aws_signature_v4.cpp
-    src/email/postbox_client.cpp
-    src/email/email_service.cpp
+    src/demo/greeting/greeting.cpp
+    src/demo/handlers/hello/hello_handler.cpp
+    src/demo/handlers/hello_postgres/hello_postgres_handler.cpp
+    src/auth/handlers/current_user/current_user_handler.cpp
+    src/auth/handlers/email_verification/email_verification_handler.cpp
+    src/auth/handlers/login/login_handler.cpp
+    src/auth/handlers/registration/registration_handler.cpp
+    src/auth/handlers/resend_code/resend_code_handler.cpp
+    src/auth/middleware/jwt/jwt_auth_checker.cpp
+    src/auth/repositories/user/user_repository.cpp
+    src/auth/repositories/verification_code/verification_repository.cpp
+    src/auth/services/email_verification/email_verification_service.cpp
+    src/auth/services/jwt/jwt_service.cpp
+    src/auth/services/login/login_service.cpp
+    src/auth/services/password/password_hasher.cpp
+    src/auth/services/registration/registration_service.cpp
+    src/auth/services/resend_code/resend_code_service.cpp
+    src/auth/services/verification_code/verification_code_service.cpp
+    src/email/postbox/postbox_client.cpp
+    src/email/service/email_service.cpp
+    src/email/signing/aws_signature_v4.cpp
 )
 target_link_libraries(
     ${PROJECT_NAME}_objs
@@ -65,14 +67,17 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_objs)
 # Unit Tests
 add_executable(
     ${PROJECT_NAME}_unittest
-    src/greeting_test.cpp
+    tests/unit/demo/greeting_test.cpp
     tests/unit/auth/jwt_service_test.cpp
 )
 target_link_libraries(${PROJECT_NAME}_unittest PRIVATE ${PROJECT_NAME}_objs userver::utest)
 add_google_tests(${PROJECT_NAME}_unittest)
 
 # Benchmarks
-add_executable(${PROJECT_NAME}_benchmark src/greeting_benchmark.cpp)
+add_executable(
+    ${PROJECT_NAME}_benchmark
+    benchmarks/demo/greeting_benchmark.cpp
+)
 target_link_libraries(${PROJECT_NAME}_benchmark PRIVATE ${PROJECT_NAME}_objs userver::ubench)
 add_google_benchmark_tests(${PROJECT_NAME}_benchmark)
 
