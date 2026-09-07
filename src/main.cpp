@@ -13,11 +13,15 @@
 
 #include "auth/handlers/current_user/current_user_handler.hpp"
 #include "auth/handlers/email_verification/email_verification_handler.hpp"
+#include "auth/handlers/forgot_password/email_check/email_check.hpp"
+#include "auth/handlers/forgot_password/update_password/update_password.hpp"
+#include "auth/handlers/forgot_password/verify_code/verify_code.hpp"
 #include "auth/handlers/login/login_handler.hpp"
 #include "auth/handlers/registration/registration_handler.hpp"
 #include "auth/handlers/resend_code/resend_code_handler.hpp"
 #include "auth/middleware/jwt/jwt_auth_checker.hpp"
 #include "auth/services/email_verification/email_verification_service.hpp"
+#include "auth/services/forgot_password/forgot_password_service.hpp"
 #include "auth/services/jwt/jwt_service.hpp"
 #include "auth/services/login/login_service.hpp"
 #include "auth/services/registration/registration_service.hpp"
@@ -26,6 +30,7 @@
 #include "demo/handlers/hello_postgres/hello_postgres_handler.hpp"
 #include "email/postbox/postbox_client.hpp"
 #include "email/service/email_service.hpp"
+#include "frontend/frontend_handler.hpp"
 
 int main(int argc, char* argv[]) {
   userver::server::handlers::auth::RegisterAuthCheckerFactory<
@@ -39,6 +44,9 @@ int main(int argc, char* argv[]) {
           .Append<userver::clients::dns::Component>()
           .Append<userver::server::handlers::TestsControl>()
           .Append<userver::congestion_control::Component>()
+          .Append<RumpelQuiz::FrontendHandler>()
+          .Append<RumpelQuiz::FrontendHandler>("handler-frontend-css")
+          .Append<RumpelQuiz::FrontendHandler>("handler-frontend-js")
           .Append<RumpelQuiz::Hello>()
           .Append<userver::components::Postgres>("postgres-db-1")
           .Append<RumpelQuiz::HelloPostgres>()
@@ -53,7 +61,11 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::LoginHandler>()
           .Append<RumpelQuiz::LoginService>()
           .Append<RumpelQuiz::ResendCodeService>()
-          .Append<RumpelQuiz::ResendCodeHandler>();
+          .Append<RumpelQuiz::ResendCodeHandler>()
+          .Append<RumpelQuiz::ForgotPasswordEmailHandler>()
+          .Append<RumpelQuiz::ForgotPasswordVerifyHandler>()
+          .Append<RumpelQuiz::ForgotPasswordUpdateHandler>()
+          .Append<RumpelQuiz::ForgotPasswordService>();
 
   return userver::utils::DaemonMain(argc, argv, component_list);
 }

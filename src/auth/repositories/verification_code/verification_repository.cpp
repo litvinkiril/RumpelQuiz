@@ -1,5 +1,9 @@
 #include "verification_repository.hpp"
 
+#include <string>
+#include <string_view>
+#include <userver/storages/postgres/io/uuid.hpp>
+
 namespace RumpelQuiz {
 boost::uuids::uuid VerificationRepository::UpsertCode(
     userver::storages::postgres::Transaction& transaction,
@@ -34,7 +38,7 @@ boost::uuids::uuid VerificationRepository::UpsertCode(
   return result[0]["id"].As<boost::uuids::uuid>();
 }
 
-std::optional<VerifyCodeData> VerificationRepository::FindCode(
+std::optional<CodeData> VerificationRepository::FindCode(
     userver::storages::postgres::Transaction& transaction,
     const boost::uuids::uuid& verification_id) const {
   const auto result = transaction.Execute(
@@ -51,7 +55,7 @@ std::optional<VerifyCodeData> VerificationRepository::FindCode(
   }
 
   const auto row = result[0];
-  return VerifyCodeData{
+  return CodeData{
       row["id"].As<boost::uuids::uuid>(),
       row["user_id"].As<boost::uuids::uuid>(),
       row["code_hash"].As<std::string>(),

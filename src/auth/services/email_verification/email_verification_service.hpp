@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string_view>
-
 #include <userver/components/component_base.hpp>
 #include <userver/storages/postgres/cluster.hpp>
 

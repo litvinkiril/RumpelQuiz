@@ -1,25 +1,25 @@
 #include "jwt_service.hpp"
 
-#include <array>
-#include <chrono>
-#include <cstdint>
-#include <limits>
-#include <stdexcept>
-#include <string>
-#include <utility>
-#include <vector>
-
-#include <boost/uuid/string_generator.hpp>
-#include <boost/uuid/uuid_io.hpp>
-
 #include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
-
+#include <array>
+#include <boost/uuid/string_generator.hpp>
+#include <boost/uuid/uuid_io.hpp>
+#include <chrono>
+#include <cstdint>
+#include <exception>
+#include <limits>
+#include <stdexcept>
+#include <string>
+#include <string_view>
 #include <userver/components/component_config.hpp>
 #include <userver/formats/json/serialize.hpp>
 #include <userver/formats/json/value_builder.hpp>
 #include <userver/yaml_config/merge_schemas.hpp>
+#include <userver/yaml_config/schema.hpp>
+#include <utility>
+#include <vector>
 
 namespace RumpelQuiz {
 namespace {

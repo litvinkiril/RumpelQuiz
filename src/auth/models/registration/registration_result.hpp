@@ -1,20 +1,19 @@
 #pragma once
 
-#include <variant>
-
 #include <boost/uuid/uuid.hpp>
+#include <variant>
 
 namespace RumpelQuiz {
 
 struct RegistrationSuccess {
-    boost::uuids::uuid verification_id;
+  boost::uuids::uuid verification_id;
 };
 
 enum class RegisterError {
-    kPasswordsDoNotMatch,
-    kEmailAlreadyExists
+  kInvalidRequest,
+  kPasswordsDoNotMatch,
+  kEmailAlreadyExists
 };
 
-using RegisterResult =
-    std::variant<RegistrationSuccess, RegisterError>;
-}
+using RegisterResult = std::variant<RegistrationSuccess, RegisterError>;
+}  // namespace RumpelQuiz

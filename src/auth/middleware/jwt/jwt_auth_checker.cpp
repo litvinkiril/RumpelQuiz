@@ -3,7 +3,6 @@
 #include <memory>
 #include <string>
 #include <string_view>
-
 #include <userver/components/component_context.hpp>
 #include <userver/http/common_headers.hpp>
 #include <userver/server/handlers/auth/auth_checker_base.hpp>

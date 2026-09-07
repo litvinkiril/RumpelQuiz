@@ -1,0 +1,7 @@
+#pragma once
+#include <string_view>
+namespace RumpelQuiz::FrontendAssets {
+inline constexpr std::string_view kHtml = R"RUMPEL_HTML(@FRONTEND_HTML@)RUMPEL_HTML";
+inline constexpr std::string_view kCss = R"RUMPEL_CSS(@FRONTEND_CSS@)RUMPEL_CSS";
+inline constexpr std::string_view kJs = R"RUMPEL_JS(@FRONTEND_JS@)RUMPEL_JS";
+}

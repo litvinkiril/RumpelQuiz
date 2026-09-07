@@ -18,3 +18,9 @@ email-send-enabled: true
 
 jwt-secret: testsuite-jwt-secret-that-is-at-least-32-characters
 jwt-access-token-ttl-seconds: 3600
+
+email-verification-code-ttl-seconds: 900
+password-reset-code-ttl-seconds: 900
+password-reset-token-ttl-seconds: 900
+
+email-log-codes: false

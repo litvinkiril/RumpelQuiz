@@ -1,5 +1,9 @@
 #include "user_repository.hpp"
 
+#include <string>
+#include <string_view>
+#include <userver/storages/postgres/io/uuid.hpp>
+
 namespace RumpelQuiz {
 
 std::optional<UserData> UserRepository::FindByEmail(
@@ -82,5 +86,16 @@ void UserRepository::VerifyUser(
                 WHERE id = $1
             )",
       user_id);
+}
+}  // namespace RumpelQuiz
+
+namespace RumpelQuiz {
+void UserRepository::UpdatePassword(
+    userver::storages::postgres::Transaction& transaction,
+    const boost::uuids::uuid& user_id, std::string_view password_hash) const {
+  transaction.Execute(
+      "UPDATE auth.users SET password_hash = $1, updated_at = NOW() WHERE id = "
+      "$2",
+      password_hash, user_id);
 }
 }  // namespace RumpelQuiz

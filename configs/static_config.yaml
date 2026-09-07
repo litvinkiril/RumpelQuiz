@@ -39,7 +39,6 @@ components_manager:
 
         http-client:
         http-client-core:
-            load-enabled: $is_testing
             fs-task-processor: fs-task-processor
 
         dns-client:
@@ -50,6 +49,24 @@ components_manager:
             path: /tests/{action}
             method: POST
             task_processor: main-task-processor
+
+        handler-frontend:
+            path: /
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+
+        handler-frontend-css:
+            path: /styles.css
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+
+        handler-frontend-js:
+            path: /app.js
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
 
         handler-ping:
             path: /ping
@@ -80,7 +97,7 @@ components_manager:
             task_processor: main-task-processor
             request_body_size_log_limit: 0
 
-        handler-auth-login: 
+        handler-auth-login:
             path: /v1/auth/login
             method: POST
             task_processor: main-task-processor
@@ -119,14 +136,42 @@ components_manager:
 
         email-service:
             send-enabled: $email-send-enabled
+            log-codes: $email-log-codes
 
-        registration-service: {}
+        registration-service:
+            verification-code-ttl-seconds: $email-verification-code-ttl-seconds
 
         email-verify-service: {}
 
         login-service: {}
 
-        resend-code-service: {}
+        resend-code-service:
+            verification-code-ttl-seconds: $email-verification-code-ttl-seconds
+
+        handler-forgot-password-email-check:
+            path: /v1/auth/forgot-password/email-check
+            method: POST
+            task_processor: main-task-processor
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+
+        handler-forgot-password-verify-code:
+            path: /v1/auth/forgot-password/verify-code
+            method: POST
+            task_processor: main-task-processor
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+
+        handler-forgot-password-update-password:
+            path: /v1/auth/forgot-password/update-password
+            method: POST
+            task_processor: main-task-processor
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+
+        forgot-password-service:
+            password-reset-code-ttl-seconds: $password-reset-code-ttl-seconds
+            password-reset-token-ttl-seconds: $password-reset-token-ttl-seconds
 
         jwt-service:
             secret#env: JWT_SECRET

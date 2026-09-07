@@ -1,10 +1,8 @@
 #pragma once
 
+#include <boost/uuid/uuid.hpp>
 #include <optional>
 #include <string_view>
-
-#include <boost/uuid/uuid.hpp>
-
 #include <userver/storages/postgres/transaction.hpp>
 
 #include "auth/models/user/user.hpp"
@@ -28,6 +26,10 @@ class UserRepository {
   void UpdateUnverifiedUser(
       userver::storages::postgres::Transaction& transaction,
       const boost::uuids::uuid& user_id, std::string_view password_hash) const;
+
+  void UpdatePassword(userver::storages::postgres::Transaction& transaction,
+                      const boost::uuids::uuid& user_id,
+                      std::string_view password_hash) const;
 
   void VerifyUser(userver::storages::postgres::Transaction& transaction,
                   const boost::uuids::uuid& user_id) const;

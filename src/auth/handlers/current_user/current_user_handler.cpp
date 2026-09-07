@@ -1,7 +1,6 @@
 #include "current_user_handler.hpp"
 
 #include <boost/uuid/uuid_io.hpp>
-
 #include <userver/formats/json/value_builder.hpp>
 
 #include "auth/middleware/jwt/auth_context.hpp"

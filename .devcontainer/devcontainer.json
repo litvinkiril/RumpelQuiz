@@ -23,9 +23,9 @@
           "--header-insertion=never"
         ],
         "clangd.path": "/usr/bin/clangd",
-        "cmake.automaticReconfigure": false,
-        "cmake.configureOnEdit": false,
-        "cmake.configureOnOpen": false,
+        "cmake.automaticReconfigure": true,
+        "cmake.configureOnEdit": true,
+        "cmake.configureOnOpen": true,
         "cmake.copyCompileCommands": "${workspaceFolder}/.vscode/compile_commands.json"
       }
     }

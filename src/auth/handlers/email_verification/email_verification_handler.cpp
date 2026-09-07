@@ -1,14 +1,13 @@
 #include "email_verification_handler.hpp"
 
-#include <exception>
-#include <string>
-#include <variant>
-
 #include <boost/uuid/string_generator.hpp>
-
+#include <exception>
+#include <stdexcept>
+#include <string>
 #include <userver/components/component_context.hpp>
 #include <userver/formats/json/value_builder.hpp>
 #include <userver/server/http/http_status.hpp>
+#include <variant>
 
 namespace RumpelQuiz {
 
@@ -25,7 +24,12 @@ userver::formats::json::Value VerifyEmailHandler::HandleRequestJsonThrow(
     const userver::formats::json::Value& request_body,
     userver::server::request::RequestContext&) const {
   boost::uuids::uuid verification_id;
+  std::string code;
   try {
+    code = request_body["code"].As<std::string>();
+    if (code.size() != 6 ||
+        code.find_first_not_of("0123456789") != std::string::npos)
+      throw std::invalid_argument("Invalid code");
     verification_id = boost::uuids::string_generator{}(
         request_body["verification_id"].As<std::string>());
   } catch (const std::exception&) {
@@ -35,7 +39,6 @@ userver::formats::json::Value VerifyEmailHandler::HandleRequestJsonThrow(
     response["error"] = "invalid_or_expired_code";
     return response.ExtractValue();
   }
-  const auto code = request_body["code"].As<std::string>();
 
   const auto result = email_verification_service_.Verify(verification_id, code);
 

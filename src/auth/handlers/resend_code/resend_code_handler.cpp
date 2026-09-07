@@ -1,15 +1,13 @@
 #include "resend_code_handler.hpp"
 
-#include <exception>
-#include <string>
-#include <variant>
-
 #include <boost/uuid/string_generator.hpp>
 #include <boost/uuid/uuid_io.hpp>
-
+#include <exception>
+#include <string>
 #include <userver/components/component_context.hpp>
 #include <userver/formats/json/value_builder.hpp>
 #include <userver/server/http/http_status.hpp>
+#include <variant>
 
 namespace RumpelQuiz {
 

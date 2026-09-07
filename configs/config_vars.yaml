@@ -16,3 +16,13 @@ email-send-enabled: false
 # JWT_SECRET must be provided through .env for local development.
 jwt-secret: ''
 jwt-access-token-ttl-seconds: 3600
+
+email-verification-code-ttl-seconds: 900
+password-reset-code-ttl-seconds: 900
+password-reset-token-ttl-seconds: 900
+
+# Local development: codes go to the backend console; Postbox is disabled.
+email-log-codes: true
+postbox-key-id: ''
+postbox-secret-key: ''
+postbox-from-email: ''

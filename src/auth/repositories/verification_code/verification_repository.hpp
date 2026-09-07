@@ -1,10 +1,8 @@
 #pragma once
 
+#include <boost/uuid/uuid.hpp>
 #include <optional>
 #include <string_view>
-
-#include <boost/uuid/uuid.hpp>
-
 #include <userver/storages/postgres/io/chrono.hpp>
 #include <userver/storages/postgres/transaction.hpp>
 
@@ -19,7 +17,7 @@ class VerificationRepository {
       const boost::uuids::uuid& user_id, std::string_view code_hash,
       userver::storages::postgres::TimePointTz expires_at) const;
 
-  std::optional<VerifyCodeData> FindCode(
+  std::optional<CodeData> FindCode(
       userver::storages::postgres::Transaction& transaction,
       const boost::uuids::uuid& verification_id) const;
 

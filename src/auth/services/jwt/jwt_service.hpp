@@ -1,12 +1,10 @@
 #pragma once
 
+#include <boost/uuid/uuid.hpp>
 #include <chrono>
 #include <stdexcept>
 #include <string>
 #include <string_view>
-
-#include <boost/uuid/uuid.hpp>
-
 #include <userver/components/component_base.hpp>
 #include <userver/yaml_config/schema.hpp>
 

@@ -1,9 +1,7 @@
 #pragma once
 
-#include <string_view>
-
 #include <boost/uuid/uuid.hpp>
-
+#include <string_view>
 #include <userver/server/request/request_context.hpp>
 
 namespace RumpelQuiz {

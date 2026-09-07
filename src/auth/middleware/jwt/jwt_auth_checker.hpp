@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string_view>
-
 #include <userver/server/handlers/auth/auth_checker_factory.hpp>
 
 #include "auth/services/jwt/jwt_service.hpp"

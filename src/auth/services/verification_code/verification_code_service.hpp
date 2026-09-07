@@ -5,13 +5,13 @@
 namespace RumpelQuiz {
 
 struct VerificationCode {
-    std::string plain;
-    std::string hash;
+  std::string plain;
+  std::string hash;
 };
 
 class VerificationCodeService {
-public:
-    VerificationCode Generate() const;
+ public:
+  VerificationCode Generate() const;
 };
 
-}
+}  // namespace RumpelQuiz

@@ -1,9 +1,10 @@
 #pragma once
 
+#include <chrono>
 #include <string_view>
-
 #include <userver/components/component_base.hpp>
 #include <userver/storages/postgres/cluster.hpp>
+#include <userver/yaml_config/schema.hpp>
 
 #include "auth/models/registration/registration_result.hpp"
 #include "auth/repositories/user/user_repository.hpp"
@@ -14,32 +15,29 @@
 
 namespace RumpelQuiz {
 
-class RegistrationService final
-    : public userver::components::ComponentBase {
-public:
-    static constexpr std::string_view kName =
-        "registration-service";
+class RegistrationService final : public userver::components::ComponentBase {
+ public:
+  static constexpr std::string_view kName = "registration-service";
 
-    RegistrationService(
-        const userver::components::ComponentConfig& config,
-        const userver::components::ComponentContext& context
-    );
+  RegistrationService(const userver::components::ComponentConfig& config,
+                      const userver::components::ComponentContext& context);
 
-    RegisterResult Register(
-        std::string_view email,
-        std::string_view password,
-        std::string_view password_confirmation
-    ) const;
+  RegisterResult Register(std::string_view email, std::string_view password,
+                          std::string_view password_confirmation) const;
 
-private:
-    userver::storages::postgres::ClusterPtr pg_;
-    EmailService& email_service_;
+  static userver::yaml_config::Schema GetStaticConfigSchema();
 
-    UserRepository user_repository_;
-    VerificationRepository verification_repository_;
+ private:
+  userver::storages::postgres::ClusterPtr pg_;
+  EmailService& email_service_;
 
-    PasswordHasher password_hasher_;
-    VerificationCodeService verification_code_service_;
+  UserRepository user_repository_;
+  VerificationRepository verification_repository_;
+
+  PasswordHasher password_hasher_;
+  VerificationCodeService verification_code_service_;
+
+  std::chrono::seconds verification_code_lifetime_;
 };
 
-}
+}  // namespace RumpelQuiz

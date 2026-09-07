@@ -1,5 +1,6 @@
 #include "login_service.hpp"
 
+#include <string_view>
 #include <userver/components/component_context.hpp>
 #include <userver/storages/postgres/component.hpp>
 #include <userver/storages/postgres/options.hpp>
@@ -13,6 +14,10 @@ LoginService::LoginService(const userver::components::ComponentConfig& config,
 
 LoginResult LoginService::LoginCheck(std::string_view email,
                                      std::string_view password) const {
+  if (password.empty() || password.size() > 72 ||
+      password.find('\0') != std::string_view::npos) {
+    return LoginError::kInvalidCredentials;
+  }
   auto transaction =
       pg_->Begin(userver::storages::postgres::ClusterHostType::kMaster,
                  userver::storages::postgres::TransactionOptions{});

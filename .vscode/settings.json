@@ -6,8 +6,8 @@
     "--completion-style=detailed",
     "--header-insertion=never"
   ],
-  "cmake.automaticReconfigure": false,
-  "cmake.configureOnEdit": false,
-  "cmake.configureOnOpen": false,
+  "cmake.automaticReconfigure": true,
+  "cmake.configureOnEdit": true,
+  "cmake.configureOnOpen": true,
   "C_Cpp.intelliSenseEngine": "disabled"
 }

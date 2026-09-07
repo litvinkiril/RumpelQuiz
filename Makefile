@@ -82,3 +82,9 @@ $(addprefix docker-cmake-, $(PRESETS)) $(addprefix docker-build-, $(PRESETS)) $(
 		env CCACHE_DIR=$$PWD/.ccache \
 		    HOME=$$HOME \
 		    $$PWD/run_as_user.sh $(shell /bin/id -u) $(shell /bin/id -g) make $*
+
+# Frontend has no build dependencies; Node.js is only needed for its tests.
+NODE ?= node
+.PHONY: test-ui
+test-ui:
+	$(NODE) --test frontend/tests/*.test.js

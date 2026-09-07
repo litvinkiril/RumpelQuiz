@@ -1,8 +1,7 @@
 #pragma once
 
-#include <variant>
-
 #include <boost/uuid/uuid.hpp>
+#include <variant>
 
 namespace RumpelQuiz {
 

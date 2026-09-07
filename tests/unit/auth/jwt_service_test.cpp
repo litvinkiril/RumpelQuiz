@@ -40,3 +40,26 @@ UTEST(JwtService, RejectsMalformedToken) {
 
   EXPECT_THROW(service.VerifyAccessToken("not-a-jwt"), RumpelQuiz::JwtError);
 }
+
+UTEST(JwtService, RejectsInvalidConfiguration) {
+  EXPECT_THROW(RumpelQuiz::JwtService("short"), std::invalid_argument);
+  EXPECT_THROW(
+      (RumpelQuiz::JwtService{std::string{kSecret}, std::chrono::seconds{0}}),
+      std::invalid_argument);
+  EXPECT_THROW(
+      (RumpelQuiz::JwtService{std::string{kSecret}, std::chrono::seconds{-1}}),
+      std::invalid_argument);
+}
+
+UTEST(JwtService, RejectsAnotherSigningKeyAndMalformedSegments) {
+  const RumpelQuiz::JwtService service{std::string{kSecret}};
+  const RumpelQuiz::JwtService other{
+      "another-unit-test-secret-with-at-least-32-characters"};
+  const auto id =
+      boost::uuids::string_generator{}("5cd5ba59-6d31-47f3-ac76-f8aa0b4d6f30");
+  EXPECT_THROW(other.VerifyAccessToken(service.GenerateAccessToken(id)),
+               RumpelQuiz::JwtError);
+  for (const auto token : {"", ".", "..", "a.b.c.d", "!.e30.!", "a=.b.c"}) {
+    EXPECT_THROW(service.VerifyAccessToken(token), RumpelQuiz::JwtError);
+  }
+}

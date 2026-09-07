@@ -1,7 +1,7 @@
 #include "email_verification_service.hpp"
 
 #include <chrono>
-
+#include <string_view>
 #include <userver/components/component_context.hpp>
 #include <userver/storages/postgres/component.hpp>
 #include <userver/storages/postgres/options.hpp>

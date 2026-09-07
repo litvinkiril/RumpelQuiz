@@ -24,11 +24,21 @@ userver_setup_environment()
 find_package(OpenSSL REQUIRED)
 find_library(CRYPT_LIBRARY crypt REQUIRED)
 
+# Embed the frontend into the service: one origin, no extra server or npm build.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    frontend/index.html frontend/styles.css frontend/app.js)
+file(READ frontend/index.html FRONTEND_HTML)
+file(READ frontend/styles.css FRONTEND_CSS)
+file(READ frontend/app.js FRONTEND_JS)
+configure_file(src/frontend/assets.hpp.in generated/frontend_assets.hpp @ONLY)
+
+
 # Common sources
-include_directories(src)
+
 
 add_library(
     ${PROJECT_NAME}_objs OBJECT
+    src/frontend/frontend_handler.cpp
     src/demo/greeting/greeting.cpp
     src/demo/handlers/hello/hello_handler.cpp
     src/demo/handlers/hello_postgres/hello_postgres_handler.cpp
@@ -37,6 +47,12 @@ add_library(
     src/auth/handlers/login/login_handler.cpp
     src/auth/handlers/registration/registration_handler.cpp
     src/auth/handlers/resend_code/resend_code_handler.cpp
+    src/auth/handlers/forgot_password/email_check/email_check.cpp
+    src/auth/handlers/forgot_password/verify_code/verify_code.cpp
+    src/auth/handlers/forgot_password/update_password/update_password.cpp
+    src/auth/services/forgot_password/forgot_password_service.cpp
+    src/auth/repositories/password_reset_codes/password_reset_repository.cpp
+    src/auth/repositories/password_reset_tokens/password_reset_token_repository.cpp
     src/auth/middleware/jwt/jwt_auth_checker.cpp
     src/auth/repositories/user/user_repository.cpp
     src/auth/repositories/verification_code/verification_repository.cpp
@@ -51,6 +67,11 @@ add_library(
     src/email/service/email_service.cpp
     src/email/signing/aws_signature_v4.cpp
 )
+target_include_directories(
+    ${PROJECT_NAME}_objs
+    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated"
+)
 target_link_libraries(
     ${PROJECT_NAME}_objs
     PUBLIC userver::core #
@@ -64,13 +85,28 @@ target_link_libraries(
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}_objs)
 
+# Each public project header must compile without include-order dependencies.
+file(GLOB_RECURSE PROJECT_HEADERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp")
+set(HEADER_CHECK_SOURCES)
+foreach(HEADER IN LISTS PROJECT_HEADERS)
+    file(RELATIVE_PATH HEADER_RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${HEADER}")
+    string(MAKE_C_IDENTIFIER "${HEADER_RELATIVE}" HEADER_ID)
+    set(HEADER_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/header-check/${HEADER_ID}.cpp")
+    file(WRITE "${HEADER_SOURCE}" "#include \"${HEADER_RELATIVE}\"\n")
+    list(APPEND HEADER_CHECK_SOURCES "${HEADER_SOURCE}")
+endforeach()
+add_library(${PROJECT_NAME}_headers OBJECT EXCLUDE_FROM_ALL ${HEADER_CHECK_SOURCES})
+target_link_libraries(${PROJECT_NAME}_headers PRIVATE ${PROJECT_NAME}_objs)
+
 # Unit Tests
 add_executable(
     ${PROJECT_NAME}_unittest
     tests/unit/demo/greeting_test.cpp
     tests/unit/auth/jwt_service_test.cpp
+    tests/unit/auth/crypto_test.cpp
 )
 target_link_libraries(${PROJECT_NAME}_unittest PRIVATE ${PROJECT_NAME}_objs userver::utest)
+add_dependencies(${PROJECT_NAME}_unittest ${PROJECT_NAME}_headers)
 add_google_tests(${PROJECT_NAME}_unittest)
 
 # Benchmarks
@@ -82,7 +118,14 @@ target_link_libraries(${PROJECT_NAME}_benchmark PRIVATE ${PROJECT_NAME}_objs use
 add_google_benchmark_tests(${PROJECT_NAME}_benchmark)
 
 # Functional testing
-userver_testsuite_add_simple()
+userver_testsuite_add_simple(PYTEST_ARGS -k "not console_codes")
+userver_testsuite_add_simple(
+    TEST_SUFFIX console
+    PYTEST_ARGS -k console_codes
+    TEST_ENV RUMPELQUIZ_TEST_CONSOLE=1
+)
+set_tests_properties(testsuite-RumpelQuiz testsuite-RumpelQuiz-console
+    PROPERTIES RESOURCE_LOCK rumpelquiz-testsuite)
 
 # Install
 include(GNUInstallDirs)
