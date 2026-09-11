@@ -3,8 +3,8 @@
 #include <string_view>
 #include <userver/server/handlers/http_handler_json_base.hpp>
 
+#include "auth/services/auth_session/auth_session_service.hpp"
 #include "auth/services/email_verification/email_verification_service.hpp"
-#include "auth/services/jwt/jwt_service.hpp"
 
 namespace RumpelQuiz {
 class VerifyEmailHandler final
@@ -22,7 +22,7 @@ class VerifyEmailHandler final
 
  private:
   EmailVerificationService& email_verification_service_;
-  const JwtService& jwt_service_;
+  AuthSessionService& auth_session_service_;
 };
 
 }  // namespace RumpelQuiz

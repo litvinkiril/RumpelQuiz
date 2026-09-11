@@ -1,5 +1,6 @@
 #include "login_handler.hpp"
 
+#include <boost/uuid/uuid_io.hpp>
 #include <string>
 #include <userver/components/component_context.hpp>
 #include <userver/formats/json/exception.hpp>
@@ -13,7 +14,7 @@ LoginHandler::LoginHandler(const userver::components::ComponentConfig& config,
                            const userver::components::ComponentContext& context)
     : HttpHandlerJsonBase(config, context),
       login_service_(context.FindComponent<LoginService>()),
-      jwt_service_(context.FindComponent<JwtServiceComponent>().GetService()) {}
+      auth_session_service_(context.FindComponent<AuthSessionService>()) {}
 
 userver::formats::json::Value LoginHandler::HandleRequestJsonThrow(
     const userver::server::http::HttpRequest& request,
@@ -37,8 +38,12 @@ userver::formats::json::Value LoginHandler::HandleRequestJsonThrow(
 
     const auto& success = std::get<LoginSuccess>(result);
     response["success"] = true;
-    response["access_token"] =
-        jwt_service_.GenerateAccessToken(success.user_id);
+    const auto tokens = auth_session_service_.CreateSession(success.user_id);
+    response["access_token"] = tokens.access_token;
+    response["refresh_token"] = tokens.refresh_token;
+    response["session_id"] = boost::uuids::to_string(tokens.session_id);
+    request.GetHttpResponse().SetHeader(std::string_view{"Cache-Control"},
+                                        "no-store");
     response["token_type"] = "Bearer";
     return response.ExtractValue();
   } catch (const userver::formats::json::Exception&) {

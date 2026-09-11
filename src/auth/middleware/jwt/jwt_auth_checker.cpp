@@ -38,8 +38,9 @@ class JwtAuthChecker final
     try {
       const std::string_view token{authorization.data() + kBearerPrefix.size(),
                                    authorization.size() - kBearerPrefix.size()};
-      context.SetData(std::string{kAuthenticatedUserId},
-                      jwt_service_.VerifyAccessToken(token));
+      const auto claims = jwt_service_.VerifyAccessToken(token);
+      context.SetData(std::string{kAuthenticatedUserId}, claims.user_id);
+      context.SetData(std::string{kAuthenticatedSessionId}, claims.session_id);
       return {};
     } catch (const JwtError&) {
       return {AuthCheckResult::Status::kTokenNotFound,

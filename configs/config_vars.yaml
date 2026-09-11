@@ -15,7 +15,8 @@ email-send-enabled: false
 
 # JWT_SECRET must be provided through .env for local development.
 jwt-secret: ''
-jwt-access-token-ttl-seconds: 3600
+jwt-access-token-ttl-seconds: 900
+session-lifetime-seconds: 15552000
 
 email-verification-code-ttl-seconds: 900
 password-reset-code-ttl-seconds: 900

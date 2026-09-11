@@ -23,7 +23,8 @@ def make_access_token(user_id, expires_in=3600):
     )
     payload = encode_base64url(
         json.dumps(
-            {'sub': str(user_id), 'iat': now, 'exp': now + expires_in},
+            {'sub': str(user_id), 'user_id': str(user_id),
+             'session_id': str(uuid.uuid4()), 'iat': now, 'exp': now + expires_in},
             separators=(',', ':'),
         ).encode(),
     )

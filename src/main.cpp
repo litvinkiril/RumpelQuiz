@@ -17,6 +17,8 @@
 #include "auth/handlers/forgot_password/update_password/update_password.hpp"
 #include "auth/handlers/forgot_password/verify_code/verify_code.hpp"
 #include "auth/handlers/login/login_handler.hpp"
+#include "auth/handlers/session/session_handlers.hpp"
+#include "auth/services/auth_session/auth_session_service.hpp"
 #include "auth/handlers/registration/registration_handler.hpp"
 #include "auth/handlers/resend_code/resend_code_handler.hpp"
 #include "auth/middleware/jwt/jwt_auth_checker.hpp"
@@ -57,6 +59,9 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::EmailVerificationService>()
           .Append<RumpelQuiz::VerifyEmailHandler>()
           .Append<RumpelQuiz::JwtServiceComponent>()
+          .Append<RumpelQuiz::AuthSessionService>()
+          .Append<RumpelQuiz::RefreshHandler>()
+          .Append<RumpelQuiz::LogoutHandler>()
           .Append<RumpelQuiz::CurrentUserHandler>()
           .Append<RumpelQuiz::LoginHandler>()
           .Append<RumpelQuiz::LoginService>()

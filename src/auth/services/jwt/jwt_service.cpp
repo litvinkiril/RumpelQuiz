@@ -138,11 +138,14 @@ JwtService::JwtService(std::string secret,
 }
 
 std::string JwtService::GenerateAccessToken(
-    const boost::uuids::uuid& user_id) const {
+    const boost::uuids::uuid& user_id,
+    const boost::uuids::uuid& session_id) const {
   const auto issued_at = UnixTimeNow();
 
   userver::formats::json::ValueBuilder payload;
   payload["sub"] = boost::uuids::to_string(user_id);
+  payload["user_id"] = boost::uuids::to_string(user_id);
+  payload["session_id"] = boost::uuids::to_string(session_id);
   payload["iat"] = issued_at;
   payload["exp"] = issued_at + access_token_lifetime_.count();
 
@@ -159,7 +162,7 @@ std::string JwtService::GenerateAccessToken(
   return signing_input + "." + EncodeBase64Url(signature_bytes);
 }
 
-boost::uuids::uuid JwtService::VerifyAccessToken(std::string_view token) const {
+AccessTokenClaims JwtService::VerifyAccessToken(std::string_view token) const {
   try {
     const auto first_dot = token.find('.');
     const auto second_dot = token.find('.', first_dot + 1);
@@ -192,7 +195,10 @@ boost::uuids::uuid JwtService::VerifyAccessToken(std::string_view token) const {
 
     const auto payload =
         userver::formats::json::FromString(DecodeBase64Url(encoded_payload));
-    const auto subject = payload["sub"].As<std::string>();
+    const auto subject = payload["user_id"].As<std::string>();
+    const auto session = payload["session_id"].As<std::string>();
+    if (payload["sub"].As<std::string>() != subject)
+      throw JwtError("Inconsistent JWT subject");
     const auto issued_at = payload["iat"].As<std::int64_t>();
     const auto expires_at = payload["exp"].As<std::int64_t>();
     const auto now = UnixTimeNow();
@@ -204,7 +210,8 @@ boost::uuids::uuid JwtService::VerifyAccessToken(std::string_view token) const {
       throw JwtError("Invalid JWT timestamps");
     }
 
-    return boost::uuids::string_generator{}(subject);
+    return {boost::uuids::string_generator{}(subject),
+            boost::uuids::string_generator{}(session)};
   } catch (const JwtError&) {
     throw;
   } catch (const std::exception&) {

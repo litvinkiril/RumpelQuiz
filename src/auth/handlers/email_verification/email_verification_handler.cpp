@@ -1,6 +1,7 @@
 #include "email_verification_handler.hpp"
 
 #include <boost/uuid/string_generator.hpp>
+#include <boost/uuid/uuid_io.hpp>
 #include <exception>
 #include <stdexcept>
 #include <string>
@@ -17,7 +18,7 @@ VerifyEmailHandler::VerifyEmailHandler(
     : HttpHandlerJsonBase(config, context),
       email_verification_service_(
           context.FindComponent<EmailVerificationService>()),
-      jwt_service_(context.FindComponent<JwtServiceComponent>().GetService()) {}
+      auth_session_service_(context.FindComponent<AuthSessionService>()) {}
 
 userver::formats::json::Value VerifyEmailHandler::HandleRequestJsonThrow(
     const userver::server::http::HttpRequest& request,
@@ -53,7 +54,12 @@ userver::formats::json::Value VerifyEmailHandler::HandleRequestJsonThrow(
 
   const auto& success = std::get<EmailVerifySuccess>(result);
   response["success"] = true;
-  response["access_token"] = jwt_service_.GenerateAccessToken(success.user_id);
+  const auto tokens = auth_session_service_.CreateSession(success.user_id);
+  response["access_token"] = tokens.access_token;
+  response["refresh_token"] = tokens.refresh_token;
+  response["session_id"] = boost::uuids::to_string(tokens.session_id);
+  request.GetHttpResponse().SetHeader(std::string_view{"Cache-Control"},
+                                      "no-store");
   response["token_type"] = "Bearer";
   return response.ExtractValue();
 }

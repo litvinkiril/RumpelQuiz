@@ -100,9 +100,10 @@ the license and CLA.
 
 ## Authentication
 
-All requests below use JSON. Successful login and email verification return
-an access_token and token_type: Bearer. Send the token as
-Authorization: Bearer <access_token> to GET /v1/auth/me.
+All requests below use JSON. Successful login and email verification create a
+session and return `access_token`, `refresh_token`, `session_id`,
+`token_type: Bearer`, and `success: true`. Send the access token as
+`Authorization: Bearer <access_token>` to `GET /v1/auth/me`.
 
 | POST endpoint | Request fields |
 | --- | --- |
@@ -110,9 +111,43 @@ Authorization: Bearer <access_token> to GET /v1/auth/me.
 | /v1/auth/verify-email | verification_id, code |
 | /v1/auth/resend-code | verification_id |
 | /v1/auth/login | email, password |
+| /v1/auth/refresh | session_id, refresh_token |
+| /v1/auth/logout | empty JSON object; Authorization: Bearer access token |
 | /v1/auth/forgot-password/email-check | email |
 | /v1/auth/forgot-password/verify-code | verification_id, code |
 | /v1/auth/forgot-password/update-password | reset_token, password, password_confirmation |
+
+Access JWTs use HS256 and contain `user_id`, `session_id`, `exp`, `iat`, and
+`sub` (equal to `user_id`). The default access lifetime is 900 seconds; the
+absolute session lifetime is 15,552,000 seconds (180 days). Configure these with
+`jwt-access-token-ttl-seconds` and `session-lifetime-seconds` in config vars.
+
+Refresh requires no access JWT. It returns the same response fields as login.
+Clients must replace the saved refresh token after each successful refresh and
+serialize refresh requests for a session. Refresh tokens contain 256 random bits
+from OpenSSL, encoded as 64 hexadecimal characters. Only their SHA-256 hashes
+are stored in PostgreSQL. `SELECT ... FOR UPDATE` locks the session until the
+hash rotation and JWT generation commit; concurrent reuse has one winner.
+Rotation never extends `expires_at`. Invalid, expired, revoked sessions and
+wrong/reused tokens return `401` with `error: invalid_session`; malformed
+request fields return `400` with `error: invalid_request`.
+
+Logout deletes the session identified by the authenticated JWT and returns
+`success: true`; repeated logout with a still-valid JWT is harmless.
+`AuthSessionService::RevokeAllSessions(user_id)` supports future logout from all
+devices. Access JWTs remain valid until their own expiration after logout,
+because JWT validation does not query the session table. Tokens from the old
+backend without the required new claims are rejected; users must log in again.
+The bundled frontend currently uses only access tokens; automatic refresh and
+server logout must be integrated by clients that need persistent sessions.
+
+Fresh databases include `auth.sessions` in the schema. Before deploying against
+an existing database, apply `postgresql/migrations/001_auth_sessions.sql` with
+`psql -v ON_ERROR_STOP=1 -f postgresql/migrations/001_auth_sessions.sql` using
+the target database connection. The script preserves existing sessions and data.
+The pre-existing `last_used_at` column is retained for compatibility and is not
+updated by this flow. Request/response body logging is disabled for token
+endpoints, and token responses use `Cache-Control: no-store`.
 
 Password recovery requires a verified email. The email-check response contains
 verification_id. Submit it with the six-digit email code to verify-code to get

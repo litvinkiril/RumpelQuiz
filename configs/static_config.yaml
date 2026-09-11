@@ -96,12 +96,14 @@ components_manager:
             method: POST
             task_processor: main-task-processor
             request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
 
         handler-auth-login:
             path: /v1/auth/login
             method: POST
             task_processor: main-task-processor
             request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
 
         handler-resend-code:
             path: /v1/auth/resend-code
@@ -176,3 +178,23 @@ components_manager:
         jwt-service:
             secret#env: JWT_SECRET
             access-token-ttl-seconds: $jwt-access-token-ttl-seconds
+
+        auth-session-service:
+            session-lifetime-seconds: $session-lifetime-seconds
+
+        handler-auth-refresh:
+            path: /v1/auth/refresh
+            method: POST
+            task_processor: main-task-processor
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+
+        handler-auth-logout:
+            path: /v1/auth/logout
+            method: POST
+            task_processor: main-task-processor
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types:
+                  - jwt

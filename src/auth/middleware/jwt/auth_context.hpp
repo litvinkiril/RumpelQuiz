@@ -14,4 +14,12 @@ inline const boost::uuids::uuid& GetAuthenticatedUserId(
   return context.GetData<boost::uuids::uuid>(kAuthenticatedUserId);
 }
 
+inline constexpr std::string_view kAuthenticatedSessionId =
+    "authenticated-session-id";
+
+inline const boost::uuids::uuid& GetAuthenticatedSessionId(
+    const userver::server::request::RequestContext& context) {
+  return context.GetData<boost::uuids::uuid>(kAuthenticatedSessionId);
+}
+
 }  // namespace RumpelQuiz

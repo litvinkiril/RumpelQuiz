@@ -18,17 +18,20 @@ UTEST(JwtService, GeneratesAndVerifiesAccessToken) {
   const RumpelQuiz::JwtService service{std::string{kSecret}};
   const auto user_id =
       boost::uuids::string_generator{}("5cd5ba59-6d31-47f3-ac76-f8aa0b4d6f30");
+  const auto session_id =
+      boost::uuids::string_generator{}("17b5377d-ecad-4a59-94da-380a19565971");
 
-  const auto token = service.GenerateAccessToken(user_id);
+  const auto token = service.GenerateAccessToken(user_id, session_id);
 
-  EXPECT_EQ(service.VerifyAccessToken(token), user_id);
+  EXPECT_EQ(service.VerifyAccessToken(token).user_id, user_id);
+  EXPECT_EQ(service.VerifyAccessToken(token).session_id, session_id);
 }
 
 UTEST(JwtService, RejectsTokenWithModifiedSignature) {
   const RumpelQuiz::JwtService service{std::string{kSecret}};
   const auto user_id =
       boost::uuids::string_generator{}("5cd5ba59-6d31-47f3-ac76-f8aa0b4d6f30");
-  auto token = service.GenerateAccessToken(user_id);
+  auto token = service.GenerateAccessToken(user_id, user_id);
   const auto signature_start = token.rfind('.') + 1;
   token[signature_start] = token[signature_start] == 'a' ? 'b' : 'a';
 
@@ -57,7 +60,7 @@ UTEST(JwtService, RejectsAnotherSigningKeyAndMalformedSegments) {
       "another-unit-test-secret-with-at-least-32-characters"};
   const auto id =
       boost::uuids::string_generator{}("5cd5ba59-6d31-47f3-ac76-f8aa0b4d6f30");
-  EXPECT_THROW(other.VerifyAccessToken(service.GenerateAccessToken(id)),
+  EXPECT_THROW(other.VerifyAccessToken(service.GenerateAccessToken(id, id)),
                RumpelQuiz::JwtError);
   for (const auto token : {"", ".", "..", "a.b.c.d", "!.e30.!", "a=.b.c"}) {
     EXPECT_THROW(service.VerifyAccessToken(token), RumpelQuiz::JwtError);

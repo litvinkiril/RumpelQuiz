@@ -15,15 +15,21 @@ class JwtError final : public std::runtime_error {
   using std::runtime_error::runtime_error;
 };
 
+struct AccessTokenClaims {
+  boost::uuids::uuid user_id;
+  boost::uuids::uuid session_id;
+};
+
 class JwtService {
  public:
   explicit JwtService(
       std::string secret,
-      std::chrono::seconds access_token_lifetime = std::chrono::hours{1});
+      std::chrono::seconds access_token_lifetime = std::chrono::minutes{15});
 
-  std::string GenerateAccessToken(const boost::uuids::uuid& user_id) const;
+  std::string GenerateAccessToken(const boost::uuids::uuid& user_id,
+                                  const boost::uuids::uuid& session_id) const;
 
-  boost::uuids::uuid VerifyAccessToken(std::string_view token) const;
+  AccessTokenClaims VerifyAccessToken(std::string_view token) const;
 
  private:
   std::string secret_;

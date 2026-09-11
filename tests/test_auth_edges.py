@@ -13,7 +13,7 @@ from test_jwt_auth import JWT_SECRET, make_access_token
 from test_login import insert_user
 from test_resend_code import insert_verification
 
-ROUTES = ['register', 'login', 'verify-email', 'resend-code',
+ROUTES = ['register', 'login', 'verify-email', 'resend-code', 'refresh',
           'forgot-password/email-check', 'forgot-password/verify-code',
           'forgot-password/update-password']
 
@@ -84,11 +84,14 @@ def sign_custom(header, payload, secret=JWT_SECRET):
 
 
 @pytest.mark.parametrize('kind', ['algorithm', 'type', 'future', 'exp_before_iat',
-                                  'missing_exp', 'wrong_sub', 'wrong_types', 'wrong_secret'])
+                                  'missing_exp', 'wrong_sub', 'wrong_types', 'wrong_secret',
+                                  'missing_user', 'missing_session', 'wrong_session',
+                                  'wrong_user', 'inconsistent_subject'])
 async def test_jwt_rejects_invalid_claims(service_client, kind):
     now = int(time.time())
     header = {'alg': 'HS256', 'typ': 'JWT'}
     payload = {'sub': str(uuid.uuid4()), 'iat': now, 'exp': now + 3600}
+    payload.update(user_id=payload['sub'], session_id=str(uuid.uuid4()))
     secret = JWT_SECRET
     if kind == 'algorithm': header['alg'] = 'none'
     if kind == 'type': header['typ'] = 'OTHER'
@@ -98,6 +101,11 @@ async def test_jwt_rejects_invalid_claims(service_client, kind):
     if kind == 'wrong_sub': payload['sub'] = 'not-a-uuid'
     if kind == 'wrong_types': payload['exp'] = str(now + 3600)
     if kind == 'wrong_secret': secret = b'another-secret'
+    if kind == 'missing_user': del payload['user_id']
+    if kind == 'missing_session': del payload['session_id']
+    if kind == 'wrong_session': payload['session_id'] = 'not-a-uuid'
+    if kind == 'wrong_user': payload.update(user_id='not-a-uuid', sub='not-a-uuid')
+    if kind == 'inconsistent_subject': payload['sub'] = str(uuid.uuid4())
     token = sign_custom(header, payload, secret)
     assert (await service_client.get('/v1/auth/me', headers={'Authorization': 'Bearer ' + token})).status == 401
 

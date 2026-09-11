@@ -17,7 +17,8 @@ postbox-url: http://localhost/unused
 email-send-enabled: true
 
 jwt-secret: testsuite-jwt-secret-that-is-at-least-32-characters
-jwt-access-token-ttl-seconds: 3600
+jwt-access-token-ttl-seconds: 900
+session-lifetime-seconds: 15552000
 
 email-verification-code-ttl-seconds: 900
 password-reset-code-ttl-seconds: 900

@@ -58,6 +58,10 @@ add_library(
     src/auth/repositories/verification_code/verification_repository.cpp
     src/auth/services/email_verification/email_verification_service.cpp
     src/auth/services/jwt/jwt_service.cpp
+    src/auth/repositories/session/session_repository.cpp
+    src/auth/services/refresh_token/refresh_token_service.cpp
+    src/auth/services/auth_session/auth_session_service.cpp
+    src/auth/handlers/session/session_handlers.cpp
     src/auth/services/login/login_service.cpp
     src/auth/services/password/password_hasher.cpp
     src/auth/services/registration/registration_service.cpp
@@ -103,6 +107,7 @@ add_executable(
     ${PROJECT_NAME}_unittest
     tests/unit/demo/greeting_test.cpp
     tests/unit/auth/jwt_service_test.cpp
+    tests/unit/auth/refresh_token_service_test.cpp
     tests/unit/auth/crypto_test.cpp
 )
 target_link_libraries(${PROJECT_NAME}_unittest PRIVATE ${PROJECT_NAME}_objs userver::utest)
