@@ -42,7 +42,8 @@ test('login loads protected account and logout clears credentials', async () => 
   const {controller:c,calls} = setup([{access_token:'jwt'}, {user_id:'u1'}]);
   await c.login('user@example.com', 'password');
   assert.deepEqual(calls[1], ['me', undefined, 'jwt']);
-  c.logout();
+  await c.logout();
+  assert.deepEqual(calls[2], ['logout', {}, 'jwt']);
   assert.equal(c.state.screen,'login');
   assert.equal(c.state.token,'');
   assert.equal(c.state.userId,'');
