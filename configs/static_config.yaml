@@ -119,6 +119,17 @@ components_manager:
                 types:
                   - jwt
 
+        profile-service: {}
+
+        handler-get-profile:
+            path: /v1/user/profile
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+            auth:
+                types:
+                  - jwt
+
         postgres-db-1:
             dbconnection: $pg-connection
             dbconnection#env: DB_CONNECTION

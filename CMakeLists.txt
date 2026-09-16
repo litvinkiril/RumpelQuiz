@@ -39,6 +39,10 @@ configure_file(src/frontend/assets.hpp.in generated/frontend_assets.hpp @ONLY)
 add_library(
     ${PROJECT_NAME}_objs OBJECT
     src/frontend/frontend_handler.cpp
+    src/user/profile/handlers/get_profile_handler.cpp
+    src/user/profile/service/profile_service.cpp
+    src/user/profile/repository/profile_repository.cpp
+    src/education/repository/education_repository.cpp
     src/demo/greeting/greeting.cpp
     src/demo/handlers/hello/hello_handler.cpp
     src/demo/handlers/hello_postgres/hello_postgres_handler.cpp

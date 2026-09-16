@@ -33,6 +33,8 @@
 #include "email/postbox/postbox_client.hpp"
 #include "email/service/email_service.hpp"
 #include "frontend/frontend_handler.hpp"
+#include "user/profile/handlers/get_profile_handler.hpp"
+#include "user/profile/service/profile_service.hpp"
 
 int main(int argc, char* argv[]) {
   userver::server::handlers::auth::RegisterAuthCheckerFactory<
@@ -63,6 +65,8 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::RefreshHandler>()
           .Append<RumpelQuiz::LogoutHandler>()
           .Append<RumpelQuiz::CurrentUserHandler>()
+          .Append<RumpelQuiz::ProfileService>()
+          .Append<RumpelQuiz::GetProfileHandler>()
           .Append<RumpelQuiz::LoginHandler>()
           .Append<RumpelQuiz::LoginService>()
           .Append<RumpelQuiz::ResendCodeService>()

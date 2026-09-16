@@ -1,100 +1,31 @@
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- Run in the existing application database using pgAdmin Query Tool.
+-- Fresh databases use postgresql/schemas/db_1.sql.
+-- Reruns are supported for this exact schema; IF NOT EXISTS does not
+-- reconcile pre-existing tables with different definitions.
+BEGIN;
 
-CREATE SCHEMA IF NOT EXISTS auth;
+SET LOCAL lock_timeout = '5s';
 
-CREATE TABLE IF NOT EXISTS auth.users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    email_verified BOOLEAN NOT NULL DEFAULT FALSE,
-    login_attempts INTEGER NOT NULL DEFAULT 0,
-    login_window_started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+-- Serialize concurrent runs of this migration.
+SELECT pg_advisory_xact_lock(60421, 3);
 
-CREATE TABLE auth.verification_codes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+DO $migration$
+BEGIN
+    IF to_regclass('users.user_roles') IS NOT NULL THEN
+        -- Prevent an insert between the emptiness check and DROP TABLE.
+        LOCK TABLE users.user_roles IN ACCESS EXCLUSIVE MODE;
 
-    user_id UUID NOT NULL UNIQUE
-        REFERENCES auth.users(id)
-        ON DELETE CASCADE,
+        IF EXISTS (SELECT 1 FROM users.user_roles) THEN
+            RAISE EXCEPTION
+                'Migration aborted: users.user_roles is not empty';
+        END IF;
 
-    code_hash TEXT NOT NULL,
-    attempts INTEGER NOT NULL DEFAULT 0,
-    expires_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+        DROP TABLE users.user_roles RESTRICT;
+    END IF;
+END
+$migration$;
 
-CREATE TABLE IF NOT EXISTS auth.password_reset_codes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    user_id UUID NOT NULL UNIQUE
-        REFERENCES auth.users(id)
-        ON DELETE CASCADE,
-
-    code_hash TEXT NOT NULL,
-    attempts INTEGER NOT NULL DEFAULT 0,
-    expires_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS auth.password_reset_token (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    user_id UUID NOT NULL UNIQUE
-        REFERENCES auth.users(id)
-        ON DELETE CASCADE,
-
-    token_hash TEXT NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE auth.sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    user_id UUID NOT NULL
-        REFERENCES auth.users(id)
-        ON DELETE CASCADE,
-
-    refresh_token_hash TEXT NOT NULL UNIQUE,
-
-    expires_at TIMESTAMPTZ NOT NULL,
-
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    last_used_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX sessions_user_id_idx
-    ON auth.sessions(user_id);
-
-CREATE INDEX sessions_expires_at_idx
-    ON auth.sessions(expires_at);
-
--- Kept for the existing /hello-postgres handler and its tests.
-CREATE SCHEMA IF NOT EXISTS hello_schema;
-
-CREATE TABLE IF NOT EXISTS hello_schema.users (
-    name TEXT PRIMARY KEY,
-    count INTEGER DEFAULT(1)
-);
-
-CREATE SCHEMA IF NOT EXISTS users;
-
-CREATE TABLE users.profiles (
-    user_id UUID PRIMARY KEY
-        REFERENCES auth.users(id)
-        ON DELETE CASCADE,
-
-    first_name TEXT,
-    last_name TEXT,
-    middle_name TEXT,
-    avatar_url TEXT,
-
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+DROP TYPE IF EXISTS users.user_role RESTRICT;
 
 CREATE SCHEMA IF NOT EXISTS education;
 
@@ -207,3 +138,5 @@ CREATE INDEX IF NOT EXISTS teacher_groups_group_id_idx
 
 -- Inactive memberships retain assignments. Application authorization must
 -- check membership.status = 'active' in the requested university.
+
+COMMIT;
