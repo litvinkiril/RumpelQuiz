@@ -21,10 +21,28 @@ public:
         const userver::components::ComponentConfig& config,
         const userver::components::ComponentContext& context);
 
+    // Call within the transaction performing the protected change.
+    bool CanManageUniversity(userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& user_id, const boost::uuids::uuid& university_id) const;
+    bool CanManageFaculty(userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& user_id, const boost::uuids::uuid& university_id,
+        const boost::uuids::uuid& faculty_id) const;
+    bool CanManageGroup(userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& user_id, const boost::uuids::uuid& university_id,
+        const boost::uuids::uuid& group_id) const;
+
     GetUniversityAdminsResult GetUniversityAdmins(
         const boost::uuids::uuid& user_id,
         const boost::uuids::uuid& university_id
     ) const;
+
+    SearchUniversityPeopleResult SearchUniversityPeople(
+        const boost::uuids::uuid& user_id,
+        const boost::uuids::uuid& university_id,
+        const PeopleSearchParams& params
+    ) const;
+
+    
 
 private:
     userver::storages::postgres::ClusterPtr pg_;

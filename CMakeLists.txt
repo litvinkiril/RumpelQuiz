@@ -59,6 +59,8 @@ add_library(
     src/auth/services/forgot_password/forgot_password_service.cpp
     src/auth/repositories/password_reset_codes/password_reset_repository.cpp
     src/auth/repositories/password_reset_tokens/password_reset_token_repository.cpp
+    src/education/handlers/search_university_people_handler.cpp
+    src/education/handlers/search_university_people_params_parser.cpp
     src/auth/middleware/jwt/jwt_auth_checker.cpp
     src/auth/repositories/user/user_repository.cpp
     src/auth/repositories/verification_code/verification_repository.cpp
@@ -115,6 +117,7 @@ add_executable(
     tests/unit/auth/jwt_service_test.cpp
     tests/unit/auth/refresh_token_service_test.cpp
     tests/unit/auth/crypto_test.cpp
+    tests/unit/education/admin_access_test.cpp
 )
 target_link_libraries(${PROJECT_NAME}_unittest PRIVATE ${PROJECT_NAME}_objs userver::utest)
 add_dependencies(${PROJECT_NAME}_unittest ${PROJECT_NAME}_headers)

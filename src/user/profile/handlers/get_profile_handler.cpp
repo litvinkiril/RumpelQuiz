@@ -87,6 +87,9 @@ GetProfileHandler::HandleRequestJsonThrow(
                 boost::uuids::to_string(position.university_id);
             item["university_name"] = position.university_name;
             item["role"] = position.role;
+            item["admin_scope"] = position.admin_scope
+                ? userver::formats::json::ValueBuilder{*position.admin_scope}
+                : userver::formats::json::ValueBuilder{};
 
             if (position.group_id) {
                 item["group_id"] =

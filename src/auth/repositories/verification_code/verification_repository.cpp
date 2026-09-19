@@ -28,6 +28,7 @@ boost::uuids::uuid VerificationRepository::UpsertCode(
             DO UPDATE SET
                 id = gen_random_uuid(),
                 code_hash = EXCLUDED.code_hash,
+                attempts = 0,
                 expires_at = EXCLUDED.expires_at,
                 created_at = NOW()
 

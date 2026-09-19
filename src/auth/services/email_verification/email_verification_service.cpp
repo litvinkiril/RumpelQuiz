@@ -32,7 +32,16 @@ EmailVerifyResult EmailVerificationService::Verify(
     return EmailVerifyError::kCodeExpired;
   }
 
+  const auto attempts = transaction.Execute(
+      "SELECT attempts FROM auth.verification_codes WHERE id = $1",
+      verification_id);
+  if (attempts[0]["attempts"].As<int>() >= 5)
+    return EmailVerifyError::kCodeDoesNotMatch;
   if (!password_hasher_.VerifyPassword(code, verify_code->code_hash)) {
+    transaction.Execute(
+        "UPDATE auth.verification_codes SET attempts = attempts + 1 WHERE id = $1",
+        verification_id);
+    transaction.Commit();
     return EmailVerifyError::kCodeDoesNotMatch;
   }
 

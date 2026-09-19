@@ -188,7 +188,8 @@ export function createController({api = createApi(), storage, onChange = () => {
         item => item.role === 'admin' && item.university_id === universityId);
       if (!position || !universityId) return false;
       ++sequence; clearEducation();
-      state.selectedUniversity = {id: position.university_id, name: position.university_name};
+      state.selectedUniversity = {id: position.university_id, name: position.university_name,
+        adminScope: position.admin_scope ?? null};
       state.screen = 'university'; state.error = ''; state.success = ''; emit(); return true;
     },
     openAdmins() {
@@ -303,7 +304,8 @@ const membershipCard = position => {
   const clickable = position.role === 'admin' && position.university_id;
   const contents = `<span class="university-icon" aria-hidden="true">▥</span><span class="membership-info">
     <span class="membership-name">${escapeHtml(position.university_name)}</span>
-    <span class="role-badge">${escapeHtml(roleNames[position.role] || position.role)}</span>
+    <span class="role-badge">${escapeHtml(position.role === 'admin' && position.admin_scope === 'faculties'
+      ? 'Администратор факультетов' : roleNames[position.role] || position.role)}</span>
     ${position.role === 'student' ? `<span class="membership-group">Группа: ${escapeHtml(position.group_name || 'Не назначена')}</span>` : ''}
     </span>${clickable ? '<span class="membership-arrow" aria-hidden="true">→</span>' : ''}`;
   return clickable
@@ -367,7 +369,7 @@ export function renderView(state) {
         </div>` : !busy ? '<button type="button" class="secondary" data-action="profile">Попробовать снова</button>' : ''}`;
   } else if (screen === 'university') {
     content = `<button type="button" class="text-button back" data-nav="profile">← Назад в профиль</button>
-      <p class="step-label">Управление вузом</p><h2 tabindex="-1">${escapeHtml(state.selectedUniversity?.name || 'Учебное заведение')}</h2>
+      <p class="step-label">${state.selectedUniversity?.adminScope === 'faculties' ? 'Администрирование факультетов' : state.selectedUniversity?.adminScope === 'university' ? 'Управление вузом' : 'Учебное заведение'}</p><h2 tabindex="-1">${escapeHtml(state.selectedUniversity?.name || 'Учебное заведение')}</h2>
       <p class="subtitle">Выберите раздел для просмотра и управления.</p>${notice}
       <div class="university-sections">
         <button type="button" class="section-card" data-action="admins"><span class="section-icon" aria-hidden="true">♙</span>

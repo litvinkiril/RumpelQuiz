@@ -53,12 +53,24 @@ async def prepare_token(service_client, pgsql, reset_mail):
 
 async def test_reset_full_flow(service_client, pgsql, reset_mail):
     email, verification_id, token = await prepare_token(service_client, pgsql, reset_mail)
+    sessions = []
+    for _ in range(2):
+        response = await service_client.post('/v1/auth/login', json={
+            'email': email, 'password': 'old-password',
+        })
+        assert response.status == 200
+        sessions.append(response.json())
     cursor = pgsql['db_1'].cursor()
     cursor.execute('SELECT token_hash FROM auth.password_reset_token WHERE id = %s',
                    (token.split('.')[0],))
     assert token.split('.')[1] not in cursor.fetchone()[0]
     assert (await verify_code(service_client, verification_id, reset_mail[-1])).status == 400
     assert (await update_password(service_client, token)).status == 200
+    for session in sessions:
+        response = await service_client.post('/v1/auth/refresh', json={
+            'session_id': session['session_id'], 'refresh_token': session['refresh_token'],
+        })
+        assert response.status == 401
     assert (await update_password(service_client, token)).status == 400
     for password, expected in [('old-password', 401), ('new-password', 200)]:
         response = await service_client.post('/v1/auth/login',

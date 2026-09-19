@@ -92,9 +92,9 @@ async def test_profile_memberships_and_groups(service_client, pgsql):
             universities[name] = str(cursor.fetchone()[0])
         university_id = universities[name]
         cursor.execute(
-            'INSERT INTO education.memberships (user_id, university_id, role, status) '
-            'VALUES (%s, %s, %s, %s) RETURNING id',
-            (user_id, university_id, role, status),
+            'INSERT INTO education.memberships (user_id, university_id, role, status, admin_scope) '
+            'VALUES (%s, %s, %s, %s, %s) RETURNING id',
+            (user_id, university_id, role, status, 'university' if role == 'admin' else None),
         )
         membership_id = str(cursor.fetchone()[0])
         group_id = None
@@ -113,12 +113,13 @@ async def test_profile_memberships_and_groups(service_client, pgsql):
             expected.append({
                 'university_id': university_id, 'university_name': name,
                 'role': role, 'group_id': group_id, 'group_name': group,
+                'admin_scope': 'university' if role == 'admin' else None,
             })
 
     other_user = create_user(cursor)
     cursor.execute(
-        "INSERT INTO education.memberships (user_id, university_id, role) "
-        "VALUES (%s, %s, 'admin')", (other_user, universities['University C']),
+        "INSERT INTO education.memberships (user_id, university_id, role, admin_scope) "
+        "VALUES (%s, %s, 'admin', 'university')", (other_user, universities['University C']),
     )
     response = await service_client.get(
         '/v1/user/profile', headers=auth_headers(user_id),

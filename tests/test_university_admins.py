@@ -13,11 +13,11 @@ def university(cursor, name):
     return str(cursor.fetchone()[0])
 
 
-def membership(cursor, user_id, university_id, role='admin', status='active'):
+def membership(cursor, user_id, university_id, role='admin', status='active', scope='university'):
     cursor.execute(
-        'INSERT INTO education.memberships (user_id, university_id, role, status) '
-        'VALUES (%s, %s, %s, %s) RETURNING id',
-        (user_id, university_id, role, status),
+        'INSERT INTO education.memberships (user_id, university_id, role, status, admin_scope) '
+        'VALUES (%s, %s, %s, %s, %s) RETURNING id',
+        (user_id, university_id, role, status, scope if role == 'admin' else None),
     )
     return str(cursor.fetchone()[0])
 

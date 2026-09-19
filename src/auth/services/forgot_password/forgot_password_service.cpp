@@ -1,4 +1,5 @@
 #include "forgot_password_service.hpp"
+#include "auth/repositories/session/session_repository.hpp"
 
 #include <openssl/rand.h>
 #include <array>
@@ -133,6 +134,9 @@ ForgotPasswordUpdateResult ForgotPasswordService::UpdatePassword(
     return ForgotPasswordUpdateError::kResetTokenNotFound;
   user_repository_.UpdatePassword(transaction, token->user_id,
                                   password_hasher_.HashPassword(password));
+  SessionRepository{}.DeleteAllByUserId(transaction, token->user_id);
+  transaction.Execute(
+      "UPDATE auth.users SET login_attempts = 0 WHERE id = $1", token->user_id);
   token_repository_.Delete(transaction, id);
   transaction.Commit();
   return ForgotPasswordUpdateSuccess{token->user_id};

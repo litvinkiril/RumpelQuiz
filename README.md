@@ -190,8 +190,11 @@ The local config already uses:
 Postbox credentials are optional in this mode. Look in the same terminal where
 make start-debug is running; registration, resend and recovery print:
 
-    [DEV AUTH CODE] purpose=verify-email email=you@example.com code=123456 ttl_seconds=900
-    [DEV AUTH CODE] purpose=reset-password email=you@example.com code=654321 ttl_seconds=900
+    ================ [DEV AUTH CODE] code=123456 purpose=verify-email email=you@example.com ttl_seconds=900 ================
+    ================ [DEV AUTH CODE] code=654321 purpose=reset-password email=you@example.com ttl_seconds=900 ================
+
+These entries use the WARNING log level to stand out from ordinary request logs.
+Search the terminal for [DEV AUTH CODE] to find them quickly.
 
 These are example codes. Enter the actual fresh code from your terminal.
 Codes are not included in HTTP responses. To enable real email later, set
@@ -212,7 +215,7 @@ session; reloading at the new-password step requires restarting recovery.
 The second command requires Node.js 22+ and installs no packages.
 On Windows it can also be run as:
 
-    node --test frontend/tests/auth.test.js
+    node --test frontend/tests/*.test.js
 
 The backend command runs unit tests, benchmarks, the API suite with mocked
 Postbox, and a separate console-mode suite with Postbox and credentials disabled.
@@ -249,3 +252,23 @@ For a clean build independent of existing object files:
     cmake --preset debug -B build-auth-check
     CCACHE_DISABLE=1 cmake --build build-auth-check -j 4
     ctest --test-dir build-auth-check --output-on-failure
+
+### Auth hardening migration
+
+For an existing development database, apply the additive migration before
+starting the updated backend (PowerShell):
+
+    Get-Content postgresql/migrations/002_auth_hardening.sql -Raw | docker compose exec -T postgres psql -U rumpelquiz -d rumpelquiz -v ON_ERROR_STOP=1
+
+Login allows five failed attempts per account in a 15-minute window. While
+blocked, it returns the same invalid_credentials response. A successful login
+or password reset clears the counter. Email verification allows five failed
+attempts per code; resending issues a new code and resets its counter. Database
+row locks serialize concurrent attempts.
+
+Password reset deletes all refresh sessions in the password-update transaction.
+Already-issued access JWTs still expire normally (at most 15 minutes).
+The frontend stores the token pair in tab-scoped sessionStorage, rotates it
+after a protected request returns 401, and retries that request once. Logout
+revokes the server session before clearing local credentials; network errors
+keep the session available for another logout attempt.

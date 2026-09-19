@@ -28,8 +28,10 @@ void EmailService::SendVerificationCode(std::string_view email,
                                         std::string_view code,
                                         std::chrono::seconds lifetime) const {
   if (log_codes_) {
-    LOG_INFO() << "[DEV AUTH CODE] purpose=verify-email email=" << email
-               << " code=" << code << " ttl_seconds=" << lifetime.count();
+    LOG_WARNING() << "================ [DEV AUTH CODE] code=" << code
+                  << " purpose=verify-email email=" << email
+                  << " ttl_seconds=" << lifetime.count()
+                  << " ================";
   }
   if (!send_enabled_) {
     return;
@@ -68,8 +70,10 @@ void EmailService::SendPasswordResetCode(std::string_view email,
                                          std::string_view code,
                                          std::chrono::seconds lifetime) const {
   if (log_codes_) {
-    LOG_INFO() << "[DEV AUTH CODE] purpose=reset-password email=" << email
-               << " code=" << code << " ttl_seconds=" << lifetime.count();
+    LOG_WARNING() << "================ [DEV AUTH CODE] code=" << code
+                  << " purpose=reset-password email=" << email
+                  << " ttl_seconds=" << lifetime.count()
+                  << " ================";
   }
   if (!send_enabled_) return;
   postbox_client_.SendEmail(email, "RumpelQuiz — восстановление пароля",

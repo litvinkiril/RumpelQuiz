@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {createApi, createController, ApiError, renderView} from '../app.js';
 
 const profile = {success: true, email: 'self@example.invalid', first_name: 'Иван', university_position: [
-  {university_id: 'hse', university_name: 'ВШЭ', role: 'admin', group_id: null, group_name: null},
-  {university_id: 'mirea', university_name: 'МИРЭА', role: 'student', group_id: null, group_name: null},
+  {university_id: 'hse', university_name: 'ВШЭ', role: 'admin', admin_scope: 'university', group_id: null, group_name: null},
+  {university_id: 'mirea', university_name: 'МИРЭА', role: 'student', admin_scope: null, group_id: null, group_name: null},
 ]};
 const admin = {membership_id: 'member', first_name: 'Елена', last_name: 'Зыбина', middle_name: null,
   avatar_url: null, email: 'admin@example.invalid'};
@@ -30,7 +30,7 @@ test('admin university opens local menu; student card cannot open admin menu', (
   assert.equal(controller.openUniversity('unknown'), false);
   assert.equal(controller.openUniversity('hse'), true);
   assert.equal(controller.state.screen, 'university');
-  assert.deepEqual(controller.state.selectedUniversity, {id: 'hse', name: 'ВШЭ'});
+  assert.deepEqual(controller.state.selectedUniversity, {id: 'hse', name: 'ВШЭ', adminScope: 'university'});
   const html = renderView(controller.state);
   assert.match(html, /Посмотреть администраторов/);
   assert.match(html, /Посмотреть преподавателей/);
@@ -142,4 +142,26 @@ test('contact data is escaped and unsafe avatar URLs do not render', () => {
   assert.ok(!html.includes('href="javascript:'));
   assert.ok(!html.includes(' onmouseover="'));
   assert.match(html, /&lt;script&gt;/);
+});
+
+test('faculty scope is shown without implying university-wide permissions', () => {
+  const controller = setup();
+  controller.state.profile = {...profile, university_position: [
+    {...profile.university_position[0], admin_scope: 'faculties'},
+  ]};
+  assert.match(renderView(controller.state), /Администратор факультетов/);
+  controller.openUniversity('hse');
+  assert.equal(controller.state.selectedUniversity.adminScope, 'faculties');
+  assert.match(renderView(controller.state), /Администрирование факультетов/);
+  assert.ok(!renderView(controller.state).includes('Управление вузом'));
+});
+
+test('missing scope does not default to university administrator', () => {
+  const controller = setup();
+  controller.state.profile = {...profile, university_position: [
+    {...profile.university_position[0], admin_scope: null},
+  ]};
+  controller.openUniversity('hse');
+  assert.equal(controller.state.selectedUniversity.adminScope, null);
+  assert.ok(!renderView(controller.state).includes('Управление вузом'));
 });

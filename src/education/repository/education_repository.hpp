@@ -7,6 +7,18 @@
 namespace RumpelQuiz {
 class EducationRepository {
 public:
+    std::optional<AdminAccess> GetAdminAccess(
+        userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& user_id,
+        const boost::uuids::uuid& university_id) const;
+    bool FacultyExists(
+        userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& university_id,
+        const boost::uuids::uuid& faculty_id) const;
+    std::optional<std::vector<boost::uuids::uuid>> GetGroupFacultyIds(
+        userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& university_id,
+        const boost::uuids::uuid& group_id) const;
     std::vector<Membership> GetAllActiveMembershipsByUserId(
         userver::storages::postgres::Transaction& transaction,
         const boost::uuids::uuid& user_id) const;
@@ -26,9 +38,24 @@ public:
         const boost::uuids::uuid& university_id
     ) const;
 
+    bool HasActiveMembership(
+        userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& user_id,
+        const boost::uuids::uuid& university_id
+    ) const;
+
+
     std::vector<UniversityAdmin> GetActiveAdminsByUniversityId(
         userver::storages::postgres::Transaction& transaction,
         const boost::uuids::uuid& university_id
+    ) const;
+
+
+
+    std::vector<UniversityPerson> SearchPeopleByUniversityId(
+        userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& university_id,
+        const PeopleSearchParams& params
     ) const;
 };
 }  // namespace RumpelQuiz
