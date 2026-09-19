@@ -130,6 +130,15 @@ components_manager:
                 types:
                   - jwt
 
+        handler-get-university-admins:
+            path: /v1/education/universities/{university_id}/admins
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+            auth:
+                types:
+                  - jwt
+
         postgres-db-1:
             dbconnection: $pg-connection
             dbconnection#env: DB_CONNECTION
@@ -157,6 +166,8 @@ components_manager:
         email-verify-service: {}
 
         login-service: {}
+
+        education-service: {}
 
         resend-code-service:
             verification-code-ttl-seconds: $email-verification-code-ttl-seconds

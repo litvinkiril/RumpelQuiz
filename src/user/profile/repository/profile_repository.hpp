@@ -22,7 +22,7 @@ class ProfileRepository {
       std::optional<std::string_view> middle_name,
       std::optional<std::string_view> avatar_url) const;
 
-  std::optional<UserProfile> FindById(
+  std::optional<UserWithProfile> FindUserWithProfileById(
       userver::storages::postgres::Transaction& transaction,
       const boost::uuids::uuid& user_id) const;
 

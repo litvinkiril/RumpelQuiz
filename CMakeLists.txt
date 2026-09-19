@@ -43,6 +43,8 @@ add_library(
     src/user/profile/service/profile_service.cpp
     src/user/profile/repository/profile_repository.cpp
     src/education/repository/education_repository.cpp
+    src/education/service/education_service.cpp
+    src/education/handlers/get_university_admins_handler.cpp
     src/demo/greeting/greeting.cpp
     src/demo/handlers/hello/hello_handler.cpp
     src/demo/handlers/hello_postgres/hello_postgres_handler.cpp

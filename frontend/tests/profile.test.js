@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createApi, createController, ApiError, renderView, safeAvatarUrl} from '../app.js';
-const profile = {success:true,email:'test@example.com',first_name:'Кирилл',last_name:'Литвин',middle_name:'Андреевич',avatar_url:null,university_position:[{university_name:'ВШЭ',role:'admin',group_name:null},{university_name:'МИРЭА',role:'student',group_name:'ИКБО-01-24'}]};
+const profile = {success:true,email:'test@example.com',first_name:'Кирилл',last_name:'Литвин',middle_name:'Андреевич',avatar_url:null,university_position:[{university_id:'hse',university_name:'ВШЭ',role:'admin',group_id:null,group_name:null},{university_id:'mirea',university_name:'МИРЭА',role:'student',group_id:'group',group_name:'ИКБО-01-24'}]};
 test('profile uses user endpoint with bearer token',async()=>{
  let request; const api=createApi(async(path,opts)=>{request={path,...opts};return {ok:true,json:async()=>profile};});
  await api('profile',undefined,'token');

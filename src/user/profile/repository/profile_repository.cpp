@@ -36,20 +36,25 @@ void ProfileRepository::Create(
     }
 }
 
-std::optional<UserProfile> ProfileRepository::FindById(
+std::optional<UserWithProfile>
+ProfileRepository::FindUserWithProfileById(
     userver::storages::postgres::Transaction& transaction,
     const boost::uuids::uuid& user_id) const {
 
     const auto result = transaction.Execute(
         R"(
             SELECT
-                user_id,
-                first_name,
-                last_name,
-                middle_name,
-                avatar_url
-            FROM users.profiles
-            WHERE user_id = $1
+                u.email,
+                u.email_verified,
+                p.user_id AS profile_user_id,
+                p.first_name,
+                p.last_name,
+                p.middle_name,
+                p.avatar_url
+            FROM auth.users AS u
+            LEFT JOIN users.profiles AS p
+                ON p.user_id = u.id
+            WHERE u.id = $1
         )",
         user_id
     );
@@ -58,7 +63,7 @@ std::optional<UserProfile> ProfileRepository::FindById(
         return std::nullopt;
     }
 
-    return result.AsSingleRow<UserProfile>(
+    return result.AsSingleRow<UserWithProfile>(
         userver::storages::postgres::kRowTag
     );
 }

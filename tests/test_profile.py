@@ -97,6 +97,7 @@ async def test_profile_memberships_and_groups(service_client, pgsql):
             (user_id, university_id, role, status),
         )
         membership_id = str(cursor.fetchone()[0])
+        group_id = None
         if group:
             cursor.execute(
                 'INSERT INTO education.study_groups (university_id, name) '
@@ -110,7 +111,8 @@ async def test_profile_memberships_and_groups(service_client, pgsql):
             )
         if status == 'active':
             expected.append({
-                'university_name': name, 'role': role, 'group_name': group,
+                'university_id': university_id, 'university_name': name,
+                'role': role, 'group_id': group_id, 'group_name': group,
             })
 
     other_user = create_user(cursor)

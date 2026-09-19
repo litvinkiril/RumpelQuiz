@@ -4,13 +4,21 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include "education/education_models.hpp"
 
 namespace RumpelQuiz {
-struct Position {
-    std::string university_name;
-    std::string role;
-    std::optional<std::string> group_name;
+
+
+struct UserWithProfile {
+    std::string email;
+    bool email_verified;
+    std::optional<boost::uuids::uuid> profile_user_id;
+    std::optional<std::string> first_name;
+    std::optional<std::string> last_name;
+    std::optional<std::string> middle_name;
+    std::optional<std::string> avatar_url;
 };
+
 struct UserProfile {
     boost::uuids::uuid user_id;
     std::optional<std::string> first_name;
@@ -29,8 +37,7 @@ struct FullProfile {
 enum class GetProfileError {
     kUserNotFound,
     kEmailNotVerified,
-    kUserProfileNotFound,
-    kUniversitiesNotFound
+    kUserProfileNotFound
 };
 using GetProfileResult = std::variant<FullProfile, GetProfileError>;
 }  // namespace RumpelQuiz

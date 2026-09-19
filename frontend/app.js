@@ -1,4 +1,6 @@
 export const messages = {
+  university_access_denied: 'Нет доступа к этому вузу. Возможно, права администратора изменились.',
+  invalid_university_id: 'Не удалось определить вуз. Вернитесь в профиль и попробуйте снова.',
   user_not_found: 'Пользователь удален',
   user_profile_not_found: 'Пользователь удален',
   invalid_credentials: 'Проверьте почту и пароль. Подтвердите почту, если ещё не сделали этого. После пяти ошибок вход временно ограничен: повторите через 15 минут.',
@@ -21,7 +23,9 @@ export function createApi(fetcher = globalThis.fetch) {
     const abort = new AbortController();
     const timeout = setTimeout(() => abort.abort(), 15000);
     try {
-      const response = await fetcher(path === 'profile' ? '/v1/user/profile' : '/v1/auth/' + path, {
+      const url = path === 'profile' ? '/v1/user/profile'
+        : path.startsWith('education/') ? '/v1/' + path : '/v1/auth/' + path;
+      const response = await fetcher(url, {
         method: data === undefined ? 'GET' : 'POST',
         headers: { ...(data === undefined ? {} : {'Content-Type': 'application/json'}),
           ...(token ? {Authorization: 'Bearer ' + token} : {}) },
@@ -53,7 +57,11 @@ const KEY = 'rumpelquiz.auth';
 export function createController({api = createApi(), storage, onChange = () => {}, now = Date.now} = {}) {
   let sequence = 0;
   const state = {screen: 'login', email: '', token: '', refreshToken: '', sessionId: '', userId: '', verificationId: '',
-    purpose: 'register', resetToken: '', resendAt: 0, busy: false, error: '', success: '', profile: null};
+    purpose: 'register', resetToken: '', resendAt: 0, busy: false, error: '', success: '', profile: null,
+    selectedUniversity: null, admins: null, selectedAdmin: null};
+  const clearEducation = () => {
+    state.selectedUniversity = null; state.admins = null; state.selectedAdmin = null;
+  };
   try {
     const saved = JSON.parse(storage?.getItem(KEY) || '{}');
     if (typeof saved.token === 'string') state.token = saved.token;
@@ -87,7 +95,10 @@ export function createController({api = createApi(), storage, onChange = () => {
     } catch (error) {
       if (current === sequence) {
         state.error = error instanceof ApiError ? error.message : 'Не удалось выполнить запрос. Попробуйте снова.';
-        if (error.status === 401 && state.token) { state.token = ''; state.refreshToken = ''; state.sessionId = ''; state.userId = ''; state.screen = 'login'; }
+        if (error.status === 401 && state.token) {
+          state.token = ''; state.refreshToken = ''; state.sessionId = ''; state.userId = '';
+          state.screen = 'login'; state.profile = null; clearEducation();
+        }
         if (error.code === 'resend_too_soon') state.resendAt = now() + 60000;
         if (error.code === 'invalid_or_expired_token') { state.resetToken = ''; state.screen = 'forgot'; }
       }
@@ -132,19 +143,29 @@ export function createController({api = createApi(), storage, onChange = () => {
   const setAccount = ({token, refreshToken, sessionId, userId}) => {
     state.token = token; state.refreshToken = refreshToken; state.sessionId = sessionId;
     state.userId = userId; state.screen = 'account'; state.profile = null;
+    clearEducation();
     state.verificationId = ''; state.resetToken = ''; state.resendAt = 0;
   };
   return {
     state,
     remaining: () => Math.max(0, Math.ceil((state.resendAt - now()) / 1000)),
     navigate(screen) {
+      if (screen === 'profile' && state.token && state.profile) {
+        ++sequence; state.busy = false; state.screen = 'profile';
+        state.error = ''; state.success = ''; clearEducation(); emit(); return;
+      }
+      if (screen === 'university' && state.token && state.selectedUniversity) {
+        ++sequence; state.busy = false; state.screen = 'university';
+        state.error = ''; state.success = ''; state.admins = null; state.selectedAdmin = null; emit(); return;
+      }
       if (screen === 'account' && state.token) {
         ++sequence; state.busy = false; state.screen = 'account';
-        state.error = ''; state.success = ''; state.profile = null; emit(); return;
+        state.error = ''; state.success = ''; state.profile = null; clearEducation(); emit(); return;
       }
       if (!['login', 'register', 'forgot'].includes(screen)) return;
       ++sequence; state.busy = false; state.screen = screen; state.error = ''; state.success = '';
       state.token = ''; state.refreshToken = ''; state.sessionId = ''; state.userId = ''; state.profile = null;
+      clearEducation();
       state.verificationId = ''; state.resetToken = ''; state.resendAt = 0; emit();
     },
     async start() {
@@ -154,12 +175,38 @@ export function createController({api = createApi(), storage, onChange = () => {
     openProfile() {
       if (state.busy || !state.token) return Promise.resolve(false);
       state.screen = 'profile'; state.profile = null;
+      clearEducation();
       return run(() => authorized('profile'), result => {
         if (!result || result.success !== true || !Array.isArray(result.university_position))
           throw new ApiError('Не удалось загрузить профиль. Попробуйте ещё раз.');
         state.profile = result;
       });
     },
+    openUniversity(universityId) {
+      if (state.busy || !state.token) return false;
+      const position = state.profile?.university_position.find(
+        item => item.role === 'admin' && item.university_id === universityId);
+      if (!position || !universityId) return false;
+      ++sequence; clearEducation();
+      state.selectedUniversity = {id: position.university_id, name: position.university_name};
+      state.screen = 'university'; state.error = ''; state.success = ''; emit(); return true;
+    },
+    openAdmins() {
+      if (state.busy || !state.token || !state.selectedUniversity) return Promise.resolve(false);
+      const universityId = state.selectedUniversity.id;
+      state.screen = 'admins'; state.admins = null; state.selectedAdmin = null;
+      return run(() => authorized('education/universities/' + encodeURIComponent(universityId) + '/admins'), result => {
+        if (result?.success !== true || !Array.isArray(result.admins))
+          throw new ApiError('Не удалось загрузить администраторов. Попробуйте ещё раз.');
+        state.admins = result.admins;
+      });
+    },
+    openAdmin(membershipId) {
+      if (state.busy || state.screen !== 'admins') return;
+      state.selectedAdmin = state.admins?.find(item => item.membership_id === membershipId) || null;
+      emit();
+    },
+    closeAdmin() { state.selectedAdmin = null; emit(); },
     login(email, password) {
       if (state.busy) return Promise.resolve(false);
       const error = validatePassword(password);
@@ -221,6 +268,7 @@ export function createController({api = createApi(), storage, onChange = () => {
       }, () => {
       Object.assign(state, {screen: 'login', token: '', refreshToken: '', sessionId: '', userId: '', verificationId: '', resetToken: '', profile: null,
         resendAt: 0, busy: false, error: '', success: 'Вы вышли из аккаунта.'});
+      clearEducation();
       try { storage?.removeItem(KEY); } catch {}
       emit();
       });
@@ -244,6 +292,24 @@ export function safeAvatarUrl(value) {
     return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password ? value : '';
   } catch { return ''; }
 }
+const personName = person => [person.last_name, person.first_name, person.middle_name].filter(Boolean).join(' ') || 'Имя не указано';
+const personAvatar = person => {
+  const url = safeAvatarUrl(person.avatar_url);
+  const initials = ((person.first_name || '').slice(0, 1) + (person.last_name || '').slice(0, 1)) || '?';
+  return `<span class="avatar person-avatar" aria-hidden="true"><span>${escapeHtml(initials)}</span>
+    ${url ? `<img src="${escapeHtml(url)}" alt="" referrerpolicy="no-referrer" data-avatar>` : ''}</span>`;
+};
+const membershipCard = position => {
+  const clickable = position.role === 'admin' && position.university_id;
+  const contents = `<span class="university-icon" aria-hidden="true">▥</span><span class="membership-info">
+    <span class="membership-name">${escapeHtml(position.university_name)}</span>
+    <span class="role-badge">${escapeHtml(roleNames[position.role] || position.role)}</span>
+    ${position.role === 'student' ? `<span class="membership-group">Группа: ${escapeHtml(position.group_name || 'Не назначена')}</span>` : ''}
+    </span>${clickable ? '<span class="membership-arrow" aria-hidden="true">→</span>' : ''}`;
+  return clickable
+    ? `<button type="button" class="membership membership-button" data-action="university" data-university-id="${escapeHtml(position.university_id)}">${contents}</button>`
+    : `<article class="membership">${contents}</article>`;
+};
 export function renderView(state) {
   const {screen, busy, email} = state;
   const notice = state.error ? `<div class="notice error" role="alert">${escapeHtml(state.error)}</div>`
@@ -297,13 +363,34 @@ export function renderView(state) {
         <div><dt>Фамилия</dt><dd>${escapeHtml(p.last_name || 'Не указана')}</dd></div>
         <div><dt>Отчество</dt><dd>${escapeHtml(p.middle_name || 'Не указано')}</dd></div></dl>
         <h3 class="section-title">Мои учебные заведения</h3><div class="membership-list">
-        ${p.university_position.length ? p.university_position.map(position => `
-          <article class="membership"><span class="university-icon" aria-hidden="true">▥</span><div>
-          <h4>${escapeHtml(position.university_name)}</h4>
-          <span class="role-badge">${escapeHtml(roleNames[position.role] || position.role)}</span>
-          ${position.role === 'student' ? `<p>Группа: ${escapeHtml(position.group_name || 'Не назначена')}</p>` : ''}
-          </div></article>`).join('') : '<p class="subtitle">Пока нет привязок к учебным заведениям.</p>'}
+        ${p.university_position.length ? p.university_position.map(membershipCard).join('') : '<p class="subtitle">Пока нет привязок к учебным заведениям.</p>'}
         </div>` : !busy ? '<button type="button" class="secondary" data-action="profile">Попробовать снова</button>' : ''}`;
+  } else if (screen === 'university') {
+    content = `<button type="button" class="text-button back" data-nav="profile">← Назад в профиль</button>
+      <p class="step-label">Управление вузом</p><h2 tabindex="-1">${escapeHtml(state.selectedUniversity?.name || 'Учебное заведение')}</h2>
+      <p class="subtitle">Выберите раздел для просмотра и управления.</p>${notice}
+      <div class="university-sections">
+        <button type="button" class="section-card" data-action="admins"><span class="section-icon" aria-hidden="true">♙</span>
+          <span><strong>Посмотреть администраторов</strong><span class="section-description">Сотрудники и контакты</span></span><span class="section-arrow" aria-hidden="true">→</span></button>
+        ${[['Посмотреть преподавателей', 'Преподаватели и их группы'], ['Посмотреть студентов', 'Студенты вашего вуза'], ['Посмотреть группы', 'Учебные группы']].map(([title, description]) => `
+          <button type="button" class="section-card" disabled><span class="section-icon" aria-hidden="true">▥</span>
+          <span><strong>${title}</strong><span class="section-description">${description}</span></span><span class="section-soon">Скоро</span></button>`).join('')}
+      </div>`;
+  } else if (screen === 'admins') {
+    content = `<button type="button" class="text-button back" data-nav="university">← К разделам вуза</button>
+      <p class="step-label university-label">${escapeHtml(state.selectedUniversity?.name || '')}</p>
+      <h2 tabindex="-1">Администраторы</h2><p class="subtitle">Нажмите на сотрудника, чтобы посмотреть почту.</p>
+      ${notice}${busy ? '<p class="list-loading" role="status">Загружаем администраторов…</p>' : ''}
+      ${state.admins ? `<p class="list-count">Всего: ${state.admins.length}</p><div class="admin-list">
+        ${state.admins.map(admin => `<button type="button" class="admin-card" data-action="admin-contact" data-membership-id="${escapeHtml(admin.membership_id)}" aria-haspopup="dialog">
+          ${personAvatar(admin)}<span class="admin-name">${escapeHtml(personName(admin))}</span><span class="contact-arrow" aria-hidden="true">↗</span></button>`).join('')}
+        </div>${state.admins.length ? '' : '<p class="empty-list">В этом вузе пока нет активных администраторов.</p>'}`
+        : !busy ? '<button type="button" class="secondary" data-action="admins">Попробовать снова</button>' : ''}
+      ${state.selectedAdmin ? `<dialog class="contact-dialog" aria-labelledby="contact-title">
+        <button type="button" class="dialog-close" data-action="close-contact" aria-label="Закрыть окно" autofocus>×</button>
+        ${personAvatar(state.selectedAdmin)}<h3 id="contact-title">${escapeHtml(personName(state.selectedAdmin))}</h3>
+        <p class="contact-label">Электронная почта</p><a class="contact-email" href="mailto:${escapeHtml(encodeURIComponent(state.selectedAdmin.email))}">${escapeHtml(state.selectedAdmin.email)}</a>
+        </dialog>` : ''}`;
   } else {
     content = `<div class="quiz-welcome"><p class="step-label">Всё начинается с вопроса</p>
       <h2 tabindex="-1">Готовы проверить<br>свои знания?</h2>
@@ -316,22 +403,23 @@ export function renderView(state) {
 }
 export function mountApp(root, options = {}) {
   let lastScreen = '';
+  let lastContactId = null;
   let controller;
   const render = (state) => {
     // Keep values across the busy/error render, never in storage.
     const values = new Map([...root.querySelectorAll('input')].map(el => [el.name, el.value]));
     const focusName = root.ownerDocument.activeElement?.getAttribute('name');
     root.innerHTML = renderView(state);
-    const signedIn = ['account', 'profile'].includes(state.screen);
+    const signedIn = ['account', 'profile', 'university', 'admins'].includes(state.screen);
     root.ownerDocument.body.classList.toggle('signed-in', signedIn);
     const nav = root.ownerDocument.getElementById('account-nav');
     if (nav) {
       nav.hidden = !signedIn;
       nav.querySelectorAll('button').forEach(button => { button.disabled = state.busy; });
-      nav.querySelector('[data-action="profile"]')?.setAttribute('aria-current', state.screen === 'profile' ? 'page' : 'false');
+      nav.querySelector('[data-action="profile"]')?.setAttribute('aria-current', ['profile', 'university', 'admins'].includes(state.screen) ? 'page' : 'false');
     }
     root.closest('.workspace')?.setAttribute('aria-label', signedIn ? 'Личный кабинет' : 'Авторизация');
-    root.querySelector('[data-avatar]')?.addEventListener('error', event => { event.target.remove(); });
+    root.querySelectorAll('[data-avatar]').forEach(img => img.addEventListener('error', event => { event.target.remove(); }));
     if (lastScreen === state.screen) {
       for (const el of root.querySelectorAll('input')) if (values.has(el.name)) el.value = values.get(el.name);
       const focus = [...root.querySelectorAll('input')].find(el => el.name === focusName);
@@ -340,7 +428,21 @@ export function mountApp(root, options = {}) {
       root.querySelector('h2')?.focus();
     }
     lastScreen = state.screen;
-    for (const el of root.querySelectorAll('input,button')) if (state.busy) el.disabled = true;
+    for (const el of root.querySelectorAll('input,button')) if (state.busy && !el.dataset.nav) el.disabled = true;
+    const dialog = root.querySelector('dialog');
+    if (dialog) {
+      dialog.addEventListener('cancel', event => { event.preventDefault(); controller.closeAdmin(); });
+      dialog.addEventListener('click', event => {
+        if (event.target !== dialog) return;
+        const bounds = dialog.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)
+          controller.closeAdmin();
+      });
+      dialog.showModal();
+    } else if (lastContactId && state.screen === 'admins') {
+      [...root.querySelectorAll('[data-membership-id]')].find(el => el.dataset.membershipId === lastContactId)?.focus();
+    }
+    lastContactId = state.selectedAdmin?.membership_id || null;
     tick();
   };
   controller = createController({...options, onChange: render});
@@ -367,12 +469,17 @@ export function mountApp(root, options = {}) {
   });
   root.addEventListener('click', event => {
     const button = event.target.closest('button');
-    if (!button || controller.state.busy) return;
-    if (button.dataset.nav) controller.navigate(button.dataset.nav);
+    if (!button || button.disabled) return;
+    if (button.dataset.nav) { controller.navigate(button.dataset.nav); return; }
+    if (controller.state.busy) return;
     if (button.dataset.action === 'logout') controller.logout();
     if (button.dataset.action === 'refresh') void controller.refresh();
     if (button.dataset.action === 'resend') void controller.resend();
     if (button.dataset.action === 'profile') void controller.openProfile();
+    if (button.dataset.action === 'university') controller.openUniversity(button.dataset.universityId);
+    if (button.dataset.action === 'admins') void controller.openAdmins();
+    if (button.dataset.action === 'admin-contact') controller.openAdmin(button.dataset.membershipId);
+    if (button.dataset.action === 'close-contact') controller.closeAdmin();
     if (button.dataset.toggle) {
       const input = root.querySelector('#' + button.dataset.toggle);
       const show = input.type === 'password';

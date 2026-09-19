@@ -16,5 +16,19 @@ public:
     std::vector<StudentGroup> GetGroupsStudentbyMemberships(
         userver::storages::postgres::Transaction& transaction,
         const std::vector<Membership>& memberships) const;
+    std::vector<Position> GetPositionsByUserId(
+        userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& user_id) const;
+
+    bool HasActiveAdminMembership(
+        userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& user_id,
+        const boost::uuids::uuid& university_id
+    ) const;
+
+    std::vector<UniversityAdmin> GetActiveAdminsByUniversityId(
+        userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& university_id
+    ) const;
 };
 }  // namespace RumpelQuiz
