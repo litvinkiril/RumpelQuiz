@@ -160,6 +160,19 @@ components_manager:
             send-enabled: $email-send-enabled
             log-codes: $email-log-codes
 
+        s3-client:
+            enabled: $s3-enabled
+            enabled#env: S3_ENABLED
+            endpoint: $s3-endpoint
+            endpoint#env: S3_ENDPOINT
+            bucket: $s3-bucket
+            bucket#env: S3_BUCKET
+            access-key: $s3-access-key
+            access-key#env: S3_ACCESS_KEY_ID
+            secret-key: $s3-secret-key
+            secret-key#env: S3_SECRET_ACCESS_KEY
+            timeout-ms: 10000
+
         registration-service:
             verification-code-ttl-seconds: $email-verification-code-ttl-seconds
 

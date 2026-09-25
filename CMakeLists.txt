@@ -12,6 +12,7 @@ find_package(
     userver
     COMPONENTS core #
                postgresql
+               s3api
     QUIET
 )
 if(NOT userver_FOUND)
@@ -78,6 +79,8 @@ add_library(
     src/email/postbox/postbox_client.cpp
     src/email/service/email_service.cpp
     src/email/signing/aws_signature_v4.cpp
+    src/s3client/s3client.cpp
+    src/s3client/s3client_component.cpp
 )
 target_include_directories(
     ${PROJECT_NAME}_objs
@@ -88,6 +91,7 @@ target_link_libraries(
     ${PROJECT_NAME}_objs
     PUBLIC userver::core #
            userver::postgresql
+           userver::s3api
            OpenSSL::Crypto
            ${CRYPT_LIBRARY}
 )
@@ -118,6 +122,7 @@ add_executable(
     tests/unit/auth/refresh_token_service_test.cpp
     tests/unit/auth/crypto_test.cpp
     tests/unit/education/admin_access_test.cpp
+    tests/unit/s3client/s3client_test.cpp
 )
 target_link_libraries(${PROJECT_NAME}_unittest PRIVATE ${PROJECT_NAME}_objs userver::utest)
 add_dependencies(${PROJECT_NAME}_unittest ${PROJECT_NAME}_headers)

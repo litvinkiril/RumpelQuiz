@@ -22,6 +22,9 @@ def service_env():
 def postbox_mock_url(mockserver_info):
     def patch_config(config_yaml, config_vars):
         components = config_yaml['components_manager']['components']
+        # Test runs must never use storage credentials inherited from the host.
+        components['s3-client']['enabled'] = False
+        components['s3-client'].pop('enabled#env', None)
         if os.environ.get('RUMPELQUIZ_TEST_CONSOLE') == '1':
             components['email-service']['send-enabled'] = False
             components['email-service']['log-codes'] = True

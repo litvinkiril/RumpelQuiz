@@ -269,19 +269,20 @@ EducationRepository::SearchPeopleByUniversityId(
                       AND membership.status = 'active'
                 )
                 AND NOT EXISTS (
+                    -- Explicit Russian case mapping also works with a C locale database.
                     SELECT 1
                     FROM unnest($2::text[]) AS query_word(word)
                     WHERE strpos(
-                        lower(COALESCE(p.last_name, '')),
-                        lower(query_word.word)
+                        lower(translate(COALESCE(p.last_name, ''), 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ', 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя')),
+                        lower(translate(query_word.word, 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ', 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'))
                     ) = 0
                     AND strpos(
-                        lower(COALESCE(p.first_name, '')),
-                        lower(query_word.word)
+                        lower(translate(COALESCE(p.first_name, ''), 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ', 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя')),
+                        lower(translate(query_word.word, 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ', 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'))
                     ) = 0
                     AND strpos(
-                        lower(COALESCE(p.middle_name, '')),
-                        lower(query_word.word)
+                        lower(translate(COALESCE(p.middle_name, ''), 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ', 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя')),
+                        lower(translate(query_word.word, 'АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ', 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'))
                     ) = 0
                 )
             ),

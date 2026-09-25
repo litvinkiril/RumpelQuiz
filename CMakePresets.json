@@ -37,6 +37,7 @@
       "generator": "Ninja",
       "cacheVariables": {
         "USERVER_FEATURE_POSTGRESQL": "ON",
+        "USERVER_FEATURE_S3API": "ON",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     }

@@ -1,4 +1,9 @@
 worker-threads: 2
+s3-enabled: false
+s3-endpoint: storage.example.com
+s3-bucket: ''
+s3-access-key: ''
+s3-secret-key: ''
 worker-fs-threads: 2
 logger-level: debug
 

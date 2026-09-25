@@ -1,4 +1,5 @@
 export const messages = {
+  invalid_search_params: 'Введите от 2 до 100 символов имени, фамилии или отчества.',
   university_access_denied: 'Нет доступа к этому вузу. Возможно, права администратора изменились.',
   invalid_university_id: 'Не удалось определить вуз. Вернитесь в профиль и попробуйте снова.',
   user_not_found: 'Пользователь удален',
@@ -58,8 +59,10 @@ export function createController({api = createApi(), storage, onChange = () => {
   let sequence = 0;
   const state = {screen: 'login', email: '', token: '', refreshToken: '', sessionId: '', userId: '', verificationId: '',
     purpose: 'register', resetToken: '', resendAt: 0, busy: false, error: '', success: '', profile: null,
-    selectedUniversity: null, admins: null, selectedAdmin: null};
+    selectedUniversity: null, admins: null, selectedAdmin: null, people: null, peopleQuery: '', nextOffset: null};
+  const clearPeople = () => { state.people = null; state.peopleQuery = ''; state.nextOffset = null; };
   const clearEducation = () => {
+    clearPeople();
     state.selectedUniversity = null; state.admins = null; state.selectedAdmin = null;
   };
   try {
@@ -95,6 +98,9 @@ export function createController({api = createApi(), storage, onChange = () => {
     } catch (error) {
       if (current === sequence) {
         state.error = error instanceof ApiError ? error.message : 'Не удалось выполнить запрос. Попробуйте снова.';
+        if (error.status === 403 && state.screen === 'people') {
+          state.people = null; state.nextOffset = null; state.selectedAdmin = null;
+        }
         if (error.status === 401 && state.token) {
           state.token = ''; state.refreshToken = ''; state.sessionId = ''; state.userId = '';
           state.screen = 'login'; state.profile = null; clearEducation();
@@ -155,6 +161,7 @@ export function createController({api = createApi(), storage, onChange = () => {
         state.error = ''; state.success = ''; clearEducation(); emit(); return;
       }
       if (screen === 'university' && state.token && state.selectedUniversity) {
+        clearPeople();
         ++sequence; state.busy = false; state.screen = 'university';
         state.error = ''; state.success = ''; state.admins = null; state.selectedAdmin = null; emit(); return;
       }
@@ -191,6 +198,33 @@ export function createController({api = createApi(), storage, onChange = () => {
       state.selectedUniversity = {id: position.university_id, name: position.university_name,
         adminScope: position.admin_scope ?? null};
       state.screen = 'university'; state.error = ''; state.success = ''; emit(); return true;
+    },
+    openPeople() {
+      if (state.busy || !state.token || !state.selectedUniversity) return false;
+      ++sequence; clearPeople(); state.selectedAdmin = null;
+      state.screen = 'people'; state.error = ''; state.success = ''; emit(); return true;
+    },
+    searchPeople(query, more = false) {
+      if (state.busy || state.screen !== 'people' || !state.selectedUniversity) return Promise.resolve(false);
+      const normalized = (more ? state.peopleQuery : query).trim();
+      if ([...normalized].length < 2 || [...normalized].length > 100 || normalized.includes('\0'))
+        return fail(messages.invalid_search_params);
+      if (more && state.nextOffset === null) return Promise.resolve(false);
+      const offset = more ? state.nextOffset : 0;
+      if (!more) { state.people = null; state.nextOffset = null; }
+      state.peopleQuery = normalized; state.selectedAdmin = null;
+      const params = new URLSearchParams({q: normalized, limit: '20', offset: String(offset)});
+      return run(() => authorized('education/universities/' + encodeURIComponent(state.selectedUniversity.id) + '/people?' + params), result => {
+        if (result?.success !== true || !Array.isArray(result.people) || typeof result.has_more !== 'boolean'
+          || (result.has_more && (!Number.isInteger(result.next_offset) || result.next_offset <= offset || result.next_offset > 10000)))
+          throw new ApiError('Не удалось загрузить результаты. Попробуйте ещё раз.');
+        state.people = [...new Map([...(more ? state.people || [] : []), ...result.people].map(person => [person.user_id, person])).values()];
+        state.nextOffset = result.has_more ? result.next_offset : null;
+      });
+    },
+    openPerson(userId) {
+      if (state.busy || state.screen !== 'people') return;
+      state.selectedAdmin = state.people?.find(person => person.user_id === userId) || null; emit();
     },
     openAdmins() {
       if (state.busy || !state.token || !state.selectedUniversity) return Promise.resolve(false);
@@ -371,6 +405,7 @@ export function renderView(state) {
     content = `<button type="button" class="text-button back" data-nav="profile">← Назад в профиль</button>
       <p class="step-label">${state.selectedUniversity?.adminScope === 'faculties' ? 'Администрирование факультетов' : state.selectedUniversity?.adminScope === 'university' ? 'Управление вузом' : 'Учебное заведение'}</p><h2 tabindex="-1">${escapeHtml(state.selectedUniversity?.name || 'Учебное заведение')}</h2>
       <p class="subtitle">Выберите раздел для просмотра и управления.</p>${notice}
+      <button type="button" class="secondary" data-action="people">Найти человека в вузе →</button>
       <div class="university-sections">
         <button type="button" class="section-card" data-action="admins"><span class="section-icon" aria-hidden="true">♙</span>
           <span><strong>Посмотреть администраторов</strong><span class="section-description">Сотрудники и контакты</span></span><span class="section-arrow" aria-hidden="true">→</span></button>
@@ -378,6 +413,27 @@ export function renderView(state) {
           <button type="button" class="section-card" disabled><span class="section-icon" aria-hidden="true">▥</span>
           <span><strong>${title}</strong><span class="section-description">${description}</span></span><span class="section-soon">Скоро</span></button>`).join('')}
       </div>`;
+  } else if (screen === 'people') {
+    content = `<button type="button" class="text-button back" data-nav="university">← К разделам вуза</button>
+      <p class="step-label university-label">${escapeHtml(state.selectedUniversity?.name || '')}</p>
+      <h2 tabindex="-1">Поиск людей</h2><p class="subtitle">Введите имя, фамилию или отчество в любом порядке. Нажмите на человека, чтобы посмотреть почту.</p>
+      <form data-form="people" role="search"><label for="people-query">Кого ищем?</label><div class="people-search">
+        <input id="people-query" name="query" type="search" required aria-describedby="search-hint" placeholder="Например, Литвин Кирилл" value="${escapeHtml(state.peopleQuery || '')}">
+        <button type="submit" class="primary">Найти</button></div><p id="search-hint" class="hint">От 2 до 100 символов. Поиск только в выбранном вузе.</p></form>
+      ${notice}${busy ? '<p role="status" class="list-loading">Ищем людей…</p>' : ''}
+      ${state.people === null ? (!busy && !state.error ? '<p class="empty-list">Начните с имени или фамилии — результаты появятся здесь.</p>' : '') : `
+        <p class="list-count" role="status">По запросу «${escapeHtml(state.peopleQuery)}» показано: ${state.people.length}</p>
+        <div class="admin-list">${state.people.map(person => `<button type="button" class="admin-card" data-action="person-contact" data-membership-id="${escapeHtml(person.user_id)}" aria-haspopup="dialog">
+          ${personAvatar(person)}<span class="person-info"><span class="admin-name">${escapeHtml(personName(person))}</span>
+          <span class="person-roles">${(person.roles || []).map(role => escapeHtml(roleNames[role] || role)).join(' · ')}</span>
+          ${person.roles?.includes('student') ? `<span class="person-study">Группа: ${escapeHtml(person.student_details?.group?.name || 'Не назначена')}<br>Факультеты: ${escapeHtml(person.student_details?.faculties?.map(f => f.name).join(', ') || 'Не указаны')}</span>` : ''}
+          </span><span class="contact-arrow" aria-hidden="true">↗</span></button>`).join('')}</div>
+        ${state.people.length ? '' : '<p class="empty-list">Никого не нашли. Попробуйте другую часть имени или проверьте написание.</p>'}
+        ${state.nextOffset !== null ? '<button type="button" class="secondary" data-action="more-people">Показать ещё</button>' : ''}`}
+      ${state.selectedAdmin ? `<dialog class="contact-dialog" aria-labelledby="contact-title">
+        <button type="button" class="dialog-close" data-action="close-contact" aria-label="Закрыть окно" autofocus>×</button>
+        ${personAvatar(state.selectedAdmin)}<h3 id="contact-title">${escapeHtml(personName(state.selectedAdmin))}</h3>
+        <p class="contact-label">Электронная почта</p><a class="contact-email" href="mailto:${escapeHtml(encodeURIComponent(state.selectedAdmin.email))}">${escapeHtml(state.selectedAdmin.email)}</a></dialog>` : ''}`;
   } else if (screen === 'admins') {
     content = `<button type="button" class="text-button back" data-nav="university">← К разделам вуза</button>
       <p class="step-label university-label">${escapeHtml(state.selectedUniversity?.name || '')}</p>
@@ -412,13 +468,13 @@ export function mountApp(root, options = {}) {
     const values = new Map([...root.querySelectorAll('input')].map(el => [el.name, el.value]));
     const focusName = root.ownerDocument.activeElement?.getAttribute('name');
     root.innerHTML = renderView(state);
-    const signedIn = ['account', 'profile', 'university', 'admins'].includes(state.screen);
+    const signedIn = ['account', 'profile', 'university', 'admins', 'people'].includes(state.screen);
     root.ownerDocument.body.classList.toggle('signed-in', signedIn);
     const nav = root.ownerDocument.getElementById('account-nav');
     if (nav) {
       nav.hidden = !signedIn;
       nav.querySelectorAll('button').forEach(button => { button.disabled = state.busy; });
-      nav.querySelector('[data-action="profile"]')?.setAttribute('aria-current', ['profile', 'university', 'admins'].includes(state.screen) ? 'page' : 'false');
+      nav.querySelector('[data-action="profile"]')?.setAttribute('aria-current', ['profile', 'university', 'admins', 'people'].includes(state.screen) ? 'page' : 'false');
     }
     root.closest('.workspace')?.setAttribute('aria-label', signedIn ? 'Личный кабинет' : 'Авторизация');
     root.querySelectorAll('[data-avatar]').forEach(img => img.addEventListener('error', event => { event.target.remove(); }));
@@ -441,10 +497,10 @@ export function mountApp(root, options = {}) {
           controller.closeAdmin();
       });
       dialog.showModal();
-    } else if (lastContactId && state.screen === 'admins') {
+    } else if (lastContactId && ['admins', 'people'].includes(state.screen)) {
       [...root.querySelectorAll('[data-membership-id]')].find(el => el.dataset.membershipId === lastContactId)?.focus();
     }
-    lastContactId = state.selectedAdmin?.membership_id || null;
+    lastContactId = state.selectedAdmin?.membership_id || state.selectedAdmin?.user_id || null;
     tick();
   };
   controller = createController({...options, onChange: render});
@@ -463,6 +519,7 @@ export function mountApp(root, options = {}) {
     if (!form.reportValidity()) return;
     const data = Object.fromEntries(new FormData(form));
     const kind = form.dataset.form;
+    if (kind === 'people') void controller.searchPeople(data.query);
     if (kind === 'login') void controller.login(data.email, data.password);
     if (kind === 'register') void controller.register(data.email, data.password, data.password_confirmation);
     if (kind === 'forgot') void controller.requestReset(data.email);
@@ -480,6 +537,9 @@ export function mountApp(root, options = {}) {
     if (button.dataset.action === 'profile') void controller.openProfile();
     if (button.dataset.action === 'university') controller.openUniversity(button.dataset.universityId);
     if (button.dataset.action === 'admins') void controller.openAdmins();
+    if (button.dataset.action === 'people') controller.openPeople();
+    if (button.dataset.action === 'more-people') void controller.searchPeople('', true);
+    if (button.dataset.action === 'person-contact') controller.openPerson(button.dataset.membershipId);
     if (button.dataset.action === 'admin-contact') controller.openAdmin(button.dataset.membershipId);
     if (button.dataset.action === 'close-contact') controller.closeAdmin();
     if (button.dataset.toggle) {

@@ -85,12 +85,14 @@ SearchUniversityPeopleResult EducationService::SearchUniversityPeople(
             params
         );
 
-    const bool has_more =
+    const bool extra_row =
         people.size() > static_cast<std::size_t>(params.limit);
 
-    if (has_more) {
+    if (extra_row) {
         people.resize(static_cast<std::size_t>(params.limit));
     }
+    // Never advertise a continuation that the request parser will reject.
+    const bool has_more = extra_row && params.offset + params.limit <= 10000;
 
     SearchUniversityPeopleSuccess success{
         std::move(people),

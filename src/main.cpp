@@ -32,6 +32,7 @@
 #include "demo/handlers/hello_postgres/hello_postgres_handler.hpp"
 #include "email/postbox/postbox_client.hpp"
 #include "email/service/email_service.hpp"
+#include "s3client/s3client_component.hpp"
 #include "frontend/frontend_handler.hpp"
 #include "user/profile/handlers/get_profile_handler.hpp"
 #include "user/profile/service/profile_service.hpp"
@@ -58,6 +59,7 @@ int main(int argc, char* argv[]) {
           .Append<userver::components::Postgres>("postgres-db-1")
           .Append<RumpelQuiz::HelloPostgres>()
           .Append<RumpelQuiz::PostboxClientComponent>()
+          .Append<RumpelQuiz::S3ClientComponent>()
           .Append<RumpelQuiz::EmailService>()
           .Append<RumpelQuiz::RegistrationService>()
           .Append<RumpelQuiz::RegisterHandler>()
