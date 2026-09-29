@@ -435,4 +435,25 @@ EducationRepository::SearchPeopleByUniversityId(
 
     return people;
 }
+
+std::vector<std::string> EducationRepository::GetActiveRoles(
+    userver::storages::postgres::Transaction& transaction,
+    const boost::uuids::uuid& user_id,
+    const boost::uuids::uuid& university_id
+) const {
+    const auto result = transaction.Execute(
+        R"(
+            SELECT role
+            FROM education.memberships
+            WHERE user_id = $1
+              AND university_id = $2
+              AND status = 'active'
+            ORDER BY role
+        )",
+        user_id,
+        university_id
+    );
+
+    return result.AsContainer<std::vector<std::string>>();
+}
 }  // namespace RumpelQuiz

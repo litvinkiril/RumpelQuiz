@@ -16,10 +16,14 @@ std::string FrontendHandler::HandleRequestThrow(
   response.SetHeader(std::string_view{"Referrer-Policy"}, "no-referrer");
   response.SetHeader(std::string_view{"Content-Security-Policy"},
                      "default-src 'self'; script-src 'self'; style-src 'self'; "
-                     "img-src 'self' data:; "
+                     "img-src 'self' data: blob: https://storage.yandexcloud.net https://*.storage.yandexcloud.net; "
                      "connect-src 'self'; frame-ancestors 'none'; base-uri "
                      "'none'; form-action 'self'");
   const auto& path = request.GetRequestPath();
+  if (path == "/quiz.js") {
+    response.SetContentType("text/javascript; charset=utf-8");
+    return std::string{FrontendAssets::kQuizJs};
+  }
   if (path == "/styles.css") {
     response.SetContentType("text/css; charset=utf-8");
     return std::string{FrontendAssets::kCss};

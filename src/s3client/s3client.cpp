@@ -1,6 +1,7 @@
 #include "s3client.hpp"
 
 #include <algorithm>
+#include <ctime>
 #include <exception>
 #include <optional>
 #include <string>
@@ -73,5 +74,21 @@ SaveImageResponse S3Client::SaveImage(std::string_view contents, std::string_vie
                         config_.endpoint + "/" + std::string{key}};
 }
 
+LoadImageResponse S3Client::LoadImage(std::string_view key) const {
+  if (!IsSafeKey(key) || !client_) return {};
+  try {
+    auto contents = client_->GetObject(key);
+    if (!contents) return {true, false, {}};
+    return {true, true, std::move(*contents)};
+  } catch (const std::exception&) {
+    userver::engine::current_task::CancellationPoint();
+    return {};
+  }
+}
+
+std::string S3Client::DownloadUrl(std::string_view key) const {
+  if (!client_ || !IsSafeKey(key)) return {};
+  return client_->GenerateDownloadUrl(key, std::time(nullptr) + 3600, true);
+}
 }  // namespace RumpelQuiz
 

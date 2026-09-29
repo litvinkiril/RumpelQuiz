@@ -113,6 +113,7 @@ std::string UploadImageHandler::HandleRequestThrow(
     userver::formats::json::ValueBuilder body;
     body["success"] = true;
     body["media_id"] = boost::uuids::to_string(uploaded.id);
+    body["image_url"] = uploaded.image_url;
 
     request.SetResponseStatus(HttpStatus::kCreated);
 

@@ -132,7 +132,7 @@ UploadImageResult MediaService::UploadImage(
         transaction.Commit();
     }
 
-    return UploadedImage{media_id};
+    return UploadedImage{media_id, s3_client_.DownloadUrl(storage_key)};
 }
 
 }  // namespace RumpelQuiz

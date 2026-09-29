@@ -155,5 +155,27 @@ UTEST(S3Client, RejectsInvalidUrlConfiguration) {
     EXPECT_THROW((S3Client{mock, {"storage.example.com", host}}), std::invalid_argument);
   }
 }
+UTEST(S3Client, ReadsBinaryObjectAndDistinguishesMissingFromFailure) {
+  auto mock = std::make_shared<MockClient>();
+  S3Client client(mock, kConfig);
+  const std::string bytes{"a\0b", 3};
+  EXPECT_CALL(*mock, GetObject("images/example.png", _, _, _))
+      .WillOnce(testing::Return(std::optional<std::string>{bytes}))
+      .WillOnce(testing::Return(std::nullopt))
+      .WillOnce(testing::Throw(std::runtime_error("secret transport details")));
+  const auto found = client.LoadImage("images/example.png");
+  EXPECT_TRUE(found.success);
+  EXPECT_TRUE(found.found);
+  EXPECT_EQ(found.contents, bytes);
+  const auto missing = client.LoadImage("images/example.png");
+  EXPECT_TRUE(missing.success);
+  EXPECT_FALSE(missing.found);
+  const auto failed = client.LoadImage("images/example.png");
+  EXPECT_FALSE(failed.success);
+  EXPECT_TRUE(failed.contents.empty());
+  EXPECT_FALSE(client.LoadImage("../secret").success);
+  EXPECT_FALSE(S3Client{}.LoadImage("images/example.png").success);
+}
+
 }  // namespace
 }  // namespace RumpelQuiz

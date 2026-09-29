@@ -50,7 +50,11 @@ public:
         const boost::uuids::uuid& university_id
     ) const;
 
-
+    std::vector<std::string> GetActiveRoles(
+        userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& user_id,
+        const boost::uuids::uuid& university_id
+    ) const;
 
     std::vector<UniversityPerson> SearchPeopleByUniversityId(
         userver::storages::postgres::Transaction& transaction,

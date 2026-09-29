@@ -30,7 +30,8 @@ configuration throws `std::invalid_argument` before the client can be used.
 A successful upload returns `https://<bucket>.<endpoint>/<storage_key>`.
 This is an object address, not a signed URL or a grant of public access;
 bucket permissions and provider support determine whether it is readable.
-The media service still returns `media_id` to its caller.
+The media service returns `media_id` and a signed `image_url` valid for one hour.
+Reading a quiz renews its image links. Keep the bucket private.
 
 ## Environment
 
@@ -60,9 +61,14 @@ contents, string-view boundaries, MIME types, key limits, URLs, failures,
 retries, replacement, cancellation, and invalid/disabled clients.
 Functional tests explicitly disable S3 even if the host exports S3_ENABLED.
 
-The media service call site is adapted to the new interface, but the HTTP
-upload handler/service remain unfinished and are not registered or compiled.
-`media/service/image_validation.hpp` and the `media.images` database schema
-are still missing. Pending upload reconciliation/cleanup is not implemented.
-These require separate endpoint integration; client tests do not prove
-end-to-end HTTP/database/object-storage persistence.
+`POST /v1/media/images` accepts exactly one multipart field `file` from an
+authenticated teacher or university administrator. PNG, JPEG and WebP are
+decoded before upload (5 MiB, 8192 pixels per side, 12 megapixels maximum).
+The S3 client also accepts GIF, but the media endpoint deliberately does not.
+The media row becomes ready only after storage confirms the upload.
+Quiz saves verify that all referenced images are ready and belong to the author.
+The migration is `postgresql/migrations/005_quizzes_media.sql`.
+
+Pending upload reconciliation and cleanup of unattached ready images are not
+implemented. Removing an image from a quiz removes its reference, not the S3
+object. Functional tests disable external S3 and check the resulting 503.

@@ -1,4 +1,14 @@
+import {newQuiz, newQuestion, newAnswer, questionComplete, quizPayload, renderQuiz} from './quiz.js';
 export const messages = {
+  quiz_access_denied: 'Создавать квизы могут преподаватели и администраторы выбранного вуза.',
+  quiz_not_found: 'Квиз не найден или доступ к нему изменился.',
+  quiz_revision_conflict: 'Квиз изменён в другой вкладке. Скопируйте свои изменения и заново откройте квиз из списка.',
+  quiz_validation_failed: 'Проверьте отмеченные поля. Незавершённый квиз можно сохранить как черновик.',
+  image_storage_unavailable: 'Хранилище картинок недоступно. Попробуйте загрузить файл ещё раз.',
+  invalid_image: 'Не удалось прочитать картинку. Выберите другой файл.',
+  unsupported_image_format: 'Поддерживаются PNG, JPEG и WebP.',
+  image_dimensions_exceeded: 'Картинка слишком большая: до 8192 пикселей по стороне и 12 мегапикселей.',
+  upload_access_denied: 'Загрузка доступна преподавателям и администраторам.',
   invalid_search_params: 'Введите от 2 до 100 символов имени, фамилии или отчества.',
   university_access_denied: 'Нет доступа к этому вузу. Возможно, права администратора изменились.',
   invalid_university_id: 'Не удалось определить вуз. Вернитесь в профиль и попробуйте снова.',
@@ -17,27 +27,28 @@ export const messages = {
   resend_too_soon: 'Повторный код можно запросить через минуту.',
 };
 export class ApiError extends Error {
-  constructor(message, status = 0, code = '') { super(message); this.status = status; this.code = code; }
+  constructor(message, status = 0, code = '', details = []) { super(message); this.status = status; this.code = code; this.details = details; }
 }
 export function createApi(fetcher = globalThis.fetch) {
-  return async (path, data, token) => {
+  return async (path, data, token, method) => {
     const abort = new AbortController();
     const timeout = setTimeout(() => abort.abort(), 15000);
     try {
       const url = path === 'profile' ? '/v1/user/profile'
-        : path.startsWith('education/') ? '/v1/' + path : '/v1/auth/' + path;
+        : /^(education\/|quizzes(?:\/|$)|media\/)/.test(path) ? '/v1/' + path : '/v1/auth/' + path;
+      const multipart = typeof FormData !== 'undefined' && data instanceof FormData;
       const response = await fetcher(url, {
-        method: data === undefined ? 'GET' : 'POST',
-        headers: { ...(data === undefined ? {} : {'Content-Type': 'application/json'}),
+        method: method || (data === undefined ? 'GET' : 'POST'),
+        headers: { ...(data === undefined || multipart ? {} : {'Content-Type': 'application/json'}),
           ...(token ? {Authorization: 'Bearer ' + token} : {}) },
-        ...(data === undefined ? {} : {body: JSON.stringify(data)}),
+        ...(data === undefined ? {} : {body: multipart ? data : JSON.stringify(data)}),
         signal: abort.signal,
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new ApiError(messages[body.error] || (response.status >= 500
           ? 'Сервис временно недоступен. Попробуйте ещё раз.'
-          : 'Не удалось выполнить запрос. Проверьте данные.'), response.status, body.error);
+          : 'Не удалось выполнить запрос. Проверьте данные.'), response.status, body.error, body.details || []);
       }
       return body;
     } catch (error) {
@@ -98,6 +109,7 @@ export function createController({api = createApi(), storage, onChange = () => {
     } catch (error) {
       if (current === sequence) {
         state.error = error instanceof ApiError ? error.message : 'Не удалось выполнить запрос. Попробуйте снова.';
+        if (state.screen === 'quiz') state.quizErrors = error.details || [];
         if (error.status === 403 && state.screen === 'people') {
           state.people = null; state.nextOffset = null; state.selectedAdmin = null;
         }
@@ -126,9 +138,9 @@ export function createController({api = createApi(), storage, onChange = () => {
     return {token: result.access_token, refreshToken: result.refresh_token || '',
       sessionId: result.session_id || '', userId: user.user_id};
   };
-  const authorized = async (path, data) => {
+  const authorized = async (path, data, method) => {
     const current = sequence;
-    try { return await api(path, data, state.token); }
+    try { return await api(path, data, state.token, ...(method ? [method] : [])); }
     catch (error) {
       if (error.status !== 401 || !state.refreshToken || !state.sessionId || current !== sequence) throw error;
       const tokens = await api('refresh', {session_id: state.sessionId, refresh_token: state.refreshToken});
@@ -138,7 +150,7 @@ export function createController({api = createApi(), storage, onChange = () => {
       state.token = tokens.access_token; state.refreshToken = tokens.refresh_token; state.sessionId = tokens.session_id;
       // Save rotation before retrying: a network failure must not restore a used token.
       persist();
-      return api(path, data, state.token);
+      return api(path, data, state.token, ...(method ? [method] : []));
     }
   };
   const currentAccount = async () => {
@@ -154,6 +166,76 @@ export function createController({api = createApi(), storage, onChange = () => {
   };
   return {
     state,
+    openQuizzes(create = false) {
+      if (!state.token || state.busy) return Promise.resolve(false);
+      return run(async () => {
+        const profile = await authorized('profile');
+        const universities = [...new Map((profile.university_position || []).filter(p => ['teacher','admin'].includes(p.role)).map(p => [p.university_id,{id:p.university_id,name:p.university_name}])).values()];
+        if (!universities.length) throw new ApiError(messages.quiz_access_denied);
+        const list = await authorized('quizzes');
+        return {universities,quizzes:list.quizzes};
+      }, result => {
+        state.quizUniversities=result.universities; state.quizzes=result.quizzes; state.quizErrors=[]; state.quizDirty=false;
+        state.screen=create?'quiz':'quizzes';
+        if(create) {state.quizDraft=newQuiz(result.universities.length===1?result.universities[0].id:'');state.quizDirty=true;}
+      });
+    },
+    newQuiz() {
+      if(state.busy || !state.quizUniversities?.length) return;
+      state.quizDraft=newQuiz(state.quizUniversities.length===1?state.quizUniversities[0].id:'');state.quizDirty=true;state.quizErrors=[];state.error='';state.success='';state.screen='quiz';emit();
+    },
+    loadQuiz(id) {
+      if(state.busy || !state.token) return Promise.resolve(false);
+      return run(()=>authorized('quizzes/'+encodeURIComponent(id)),result=>{
+        state.quizDraft=result.quiz;state.quizDirty=false;state.quizErrors=[];state.screen='quiz';
+      });
+    },
+    editQuiz(field,value,qi,ai) {
+      if(state.busy || state.screen!=='quiz') return;
+      const d=state.quizDraft,q=d.questions[qi];
+      const target=ai===undefined ? (q || d):q?.answers[ai];
+      if(!target) return;
+      if(field==='is_correct' && q.type==='single') q.answers.forEach(a=>{a.is_correct=false;});
+      target[field]=field==='time_seconds' ? (value===''?null:value):value;
+      if(field==='type' && value==='single') {const first=q.answers.findIndex(a=>a.is_correct);q.answers.forEach((a,i)=>{a.is_correct=i===first;});}
+      state.quizDirty=true;state.success='';state.quizErrors=[];
+      if(field==='type') emit();
+    },
+    changeQuiz(action,qi,ai) {
+      if(state.busy || state.screen!=='quiz') return;
+      const d=state.quizDraft,q=d.questions[qi];
+      if(action==='quiz-add-question') {
+        if(d.questions.length>=100 || !d.questions.every(q=>questionComplete(q,d.default_time_seconds))) return;
+        d.questions.push(newQuestion());
+      }
+      if(action==='quiz-remove-question' && d.questions.length>1) d.questions.splice(qi,1);
+      if(action==='quiz-add-answer' && q.answers.length<20) q.answers.push(newAnswer());
+      if(action==='quiz-remove-answer' && q.answers.length>2) q.answers.splice(ai,1);
+      if(action==='quiz-remove-image') {const target=ai===undefined?q:q.answers[ai];target.image_id=null;target.image_url='';target.upload_error='';}
+      state.quizDirty=true;state.quizErrors=[];state.success='';emit();
+    },
+    saveQuiz(status) {
+      if(state.busy || state.screen!=='quiz') return Promise.resolve(false);
+      const d=state.quizDraft;
+      if(!d.university_id) return fail('Выберите учебное заведение.');
+      if(!(Number(d.default_time_seconds)>0) || d.questions.some(q=>q.time_seconds!==null && !(Number(q.time_seconds)>0))) return fail('Время должно быть больше нуля. Пустое время вопроса означает время по умолчанию.');
+      state.quizErrors=[];
+      return run(()=>authorized('quizzes'+(d.id?'/'+d.id:''),quizPayload(d,status),d.id?'PUT':'POST'),result=>{
+        d.id=result.quiz_id;d.revision=result.revision;d.status=result.status;state.quizDirty=false;
+        state.success=result.status==='draft'?'Черновик сохранён. Его можно открыть в «Мои квизы».':'Квиз сохранён и готов к будущему запуску.';
+      });
+    },
+    uploadQuizImage(file,qi,ai) {
+      if(state.busy || state.screen!=='quiz' || !file) return Promise.resolve(false);
+      const q=state.quizDraft.questions[qi],target=ai===undefined?q:q.answers[ai];
+      if(file.size>5242880) return fail('Максимальный размер картинки — 5 МиБ.');
+      if(!['image/png','image/jpeg','image/webp'].includes(file.type)) return fail(messages.unsupported_image_format);
+      target.upload_error='';state.quizUploading=true;
+      const form=new FormData();form.append('file',file);
+      return run(()=>authorized('media/images',form),result=>{
+        target.image_id=result.media_id;target.image_url=result.image_url;state.quizDirty=true;
+      }).then(ok=>{state.quizUploading=false;if(!ok && state.screen==='quiz') target.upload_error=state.error;emit();return ok;});
+    },
     remaining: () => Math.max(0, Math.ceil((state.resendAt - now()) / 1000)),
     navigate(screen) {
       if (screen === 'profile' && state.token && state.profile) {
@@ -352,7 +434,9 @@ export function renderView(state) {
     : state.success ? `<div class="notice success" role="status">${escapeHtml(state.success)}</div>` : '';
   const back = (target = 'login') => `<button type="button" class="text-button back" data-nav="${target}">← Вернуться ко входу</button>`;
   let content;
-  if (screen === 'login' || screen === 'register') {
+  if (screen === 'quiz' || screen === 'quizzes') {
+    content = renderQuiz(state, notice);
+  } else if (screen === 'login' || screen === 'register') {
     const register = screen === 'register';
     content = `<div class="tabs" role="tablist" aria-label="Вход или регистрация">
       <button role="tab" type="button" aria-selected="${!register}" data-nav="login">Войти</button>
@@ -452,8 +536,10 @@ export function renderView(state) {
   } else {
     content = `<div class="quiz-welcome"><p class="step-label">Всё начинается с вопроса</p>
       <h2 tabindex="-1">Готовы проверить<br>свои знания?</h2>
-      <p class="subtitle">Ваш следующий квиз — уже скоро.<br>А пока загляните в свой профиль.</p>
+      <p class="subtitle">Создайте свой квиз и сохраните вопросы.<br>Всё начинается с любопытства.</p>
       ${notice}<div class="quiz-symbol" aria-hidden="true">?</div>
+      <button type="button" class="primary quiz-button" data-action="create-quiz">＋ Создать квиз</button>
+      <button type="button" class="secondary quiz-button" data-action="my-quizzes">Мои квизы →</button>
       <button type="button" class="primary quiz-button" disabled><strong>Пройти квиз</strong><span class="soon">Скоро</span></button>
       <p class="hint">Здесь появятся квизы вашего учебного заведения.</p></div>`;
   }
@@ -467,8 +553,9 @@ export function mountApp(root, options = {}) {
     // Keep values across the busy/error render, never in storage.
     const values = new Map([...root.querySelectorAll('input')].map(el => [el.name, el.value]));
     const focusName = root.ownerDocument.activeElement?.getAttribute('name');
+    const focusId = root.ownerDocument.activeElement?.id;
     root.innerHTML = renderView(state);
-    const signedIn = ['account', 'profile', 'university', 'admins', 'people'].includes(state.screen);
+    const signedIn = ['account', 'profile', 'university', 'admins', 'people', 'quiz', 'quizzes'].includes(state.screen);
     root.ownerDocument.body.classList.toggle('signed-in', signedIn);
     const nav = root.ownerDocument.getElementById('account-nav');
     if (nav) {
@@ -478,10 +565,12 @@ export function mountApp(root, options = {}) {
     }
     root.closest('.workspace')?.setAttribute('aria-label', signedIn ? 'Личный кабинет' : 'Авторизация');
     root.querySelectorAll('[data-avatar]').forEach(img => img.addEventListener('error', event => { event.target.remove(); }));
-    if (lastScreen === state.screen) {
+    if (lastScreen === state.screen && state.screen !== 'quiz') {
       for (const el of root.querySelectorAll('input')) if (values.has(el.name)) el.value = values.get(el.name);
       const focus = [...root.querySelectorAll('input')].find(el => el.name === focusName);
       focus?.focus();
+    } else if (lastScreen === 'quiz' && state.screen === 'quiz') {
+      if (focusId) root.ownerDocument.getElementById(focusId)?.focus({preventScroll:true});
     } else {
       root.querySelector('h2')?.focus();
     }
@@ -512,10 +601,33 @@ export function mountApp(root, options = {}) {
     button.textContent = seconds > 0 ? `Новый код через ${seconds} с` : 'Получить новый код';
   };
   const interval = setInterval(tick, 1000);
+  const canLeave = () => !controller.state.quizDirty || controller.state.screen!=='quiz' || root.ownerDocument.defaultView.confirm('Есть несохранённые изменения. Выйти из редактора?');
+  const beforeUnload = event => { if(controller.state.screen==='quiz' && controller.state.quizDirty) {event.preventDefault();event.returnValue='';} };
+  root.ownerDocument.defaultView.addEventListener('beforeunload',beforeUnload);
+  root.addEventListener('input', event => {
+    const el=event.target,field=el.dataset.quizField;
+    if(!field || el.tagName==='SELECT' || ['radio','checkbox'].includes(el.type)) return;
+    controller.editQuiz(field,el.value,el.dataset.q===undefined?undefined:Number(el.dataset.q),el.dataset.a===undefined?undefined:Number(el.dataset.a));
+    const d=controller.state.quizDraft;
+    const add=root.querySelector('[data-action="quiz-add-question"]');
+    const complete=d.questions.length<100 && d.questions.every(q=>questionComplete(q,d.default_time_seconds));
+    if(add) add.disabled=!complete;
+    const hint=root.querySelector('#next-question-hint');if(hint) hint.textContent=complete?'Можно добавить следующий вопрос.':'Заполните вопросы, минимум два ответа и отметьте правильные варианты.';
+    const dirty=root.querySelector('[data-quiz-dirty]');if(dirty) dirty.textContent='Есть несохранённые изменения';
+  });
+  root.addEventListener('change', event => {
+    const el=event.target,qi=el.dataset.q===undefined?undefined:Number(el.dataset.q),ai=el.dataset.a===undefined?undefined:Number(el.dataset.a);
+    if(el.hasAttribute('data-quiz-image')) {void controller.uploadQuizImage(el.files?.[0],qi,ai);return;}
+    if(el.dataset.quizField && (el.tagName==='SELECT' || ['radio','checkbox'].includes(el.type))) {
+      controller.editQuiz(el.dataset.quizField,['radio','checkbox'].includes(el.type)?el.checked:el.value,qi,ai);
+      if(el.dataset.quizField!=='type') render(controller.state);
+    }
+  });
   root.addEventListener('submit', event => {
     event.preventDefault();
     if (controller.state.busy) return;
     const form = event.target;
+    if(form.dataset.form==='quiz') {void controller.saveQuiz('ready');return;}
     if (!form.reportValidity()) return;
     const data = Object.fromEntries(new FormData(form));
     const kind = form.dataset.form;
@@ -529,8 +641,16 @@ export function mountApp(root, options = {}) {
   root.addEventListener('click', event => {
     const button = event.target.closest('button');
     if (!button || button.disabled) return;
-    if (button.dataset.nav) { controller.navigate(button.dataset.nav); return; }
+    if (button.dataset.nav) { if(canLeave()) controller.navigate(button.dataset.nav); return; }
     if (controller.state.busy) return;
+    const action=button.dataset.action,qi=Number(button.dataset.q),ai=button.dataset.a===undefined?undefined:Number(button.dataset.a);
+    if(['create-quiz','my-quizzes','new-quiz','edit-quiz','profile','logout'].includes(action) && !canLeave()) return;
+    if(action==='create-quiz') void controller.openQuizzes(true);
+    if(action==='my-quizzes') void controller.openQuizzes();
+    if(action==='new-quiz') controller.newQuiz();
+    if(action==='edit-quiz') void controller.loadQuiz(button.dataset.id);
+    if(action==='quiz-save-draft') void controller.saveQuiz('draft');
+    if(['quiz-add-question','quiz-remove-question','quiz-add-answer','quiz-remove-answer','quiz-remove-image'].includes(action)) controller.changeQuiz(action,qi,ai);
     if (button.dataset.action === 'logout') controller.logout();
     if (button.dataset.action === 'refresh') void controller.refresh();
     if (button.dataset.action === 'resend') void controller.resend();
@@ -551,7 +671,7 @@ export function mountApp(root, options = {}) {
     }
   });
   void controller.start();
-  return {controller, destroy: () => clearInterval(interval)};
+  return {controller, canLeave, destroy: () => {clearInterval(interval);root.ownerDocument.defaultView.removeEventListener('beforeunload',beforeUnload);}};
 }
 if (typeof document !== 'undefined') {
   const root = document.getElementById('app');
@@ -559,15 +679,18 @@ if (typeof document !== 'undefined') {
     let storage;
     try { storage = window.sessionStorage; } catch {}
     const app = mountApp(root, {storage});
+
+
     document.getElementById('account-nav')?.addEventListener('click', event => {
       if (app.controller.state.busy) return;
+      if (!app.canLeave()) return;
       const action = event.target.closest('button')?.dataset.action;
       if (action === 'profile') void app.controller.openProfile();
       if (action === 'logout') void app.controller.logout();
     });
     document.querySelector('.brand')?.addEventListener('click', event => {
       event.preventDefault();
-      if (!app.controller.state.busy) app.controller.navigate(app.controller.state.token ? 'account' : 'login');
+      if (!app.controller.state.busy && app.canLeave()) app.controller.navigate(app.controller.state.token ? 'account' : 'login');
     });
   }
 }

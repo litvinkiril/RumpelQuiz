@@ -40,6 +40,10 @@
 #include "education/service/education_service.hpp"
 #include "education/handlers/search_university_people_handler.hpp"
 
+#include "quiz/authoring/handlers/save_quiz_handler.hpp"
+#include "quiz/authoring/handlers/get_quiz_handler.hpp"
+#include "media/handlers/upload_image_handler.hpp"
+
 int main(int argc, char* argv[]) {
   userver::server::handlers::auth::RegisterAuthCheckerFactory<
       RumpelQuiz::JwtAuthCheckerFactory>();
@@ -55,11 +59,19 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::FrontendHandler>()
           .Append<RumpelQuiz::FrontendHandler>("handler-frontend-css")
           .Append<RumpelQuiz::FrontendHandler>("handler-frontend-js")
+          .Append<RumpelQuiz::FrontendHandler>("handler-frontend-quiz-js")
           .Append<RumpelQuiz::Hello>()
           .Append<userver::components::Postgres>("postgres-db-1")
           .Append<RumpelQuiz::HelloPostgres>()
           .Append<RumpelQuiz::PostboxClientComponent>()
           .Append<RumpelQuiz::S3ClientComponent>()
+          .Append<RumpelQuiz::QuizService>()
+          .Append<RumpelQuiz::MediaService>()
+          .Append<RumpelQuiz::UploadImageHandler>()
+          .Append<RumpelQuiz::SaveQuizHandler>("handler-create-quiz")
+          .Append<RumpelQuiz::SaveQuizHandler>("handler-update-quiz")
+          .Append<RumpelQuiz::GetQuizHandler>()
+          .Append<RumpelQuiz::GetQuizHandler>("handler-list-quizzes")
           .Append<RumpelQuiz::EmailService>()
           .Append<RumpelQuiz::RegistrationService>()
           .Append<RumpelQuiz::RegisterHandler>()

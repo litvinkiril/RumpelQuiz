@@ -161,16 +161,16 @@ components_manager:
             log-codes: $email-log-codes
 
         s3-client:
-            enabled: $s3-enabled
             enabled#env: S3_ENABLED
-            endpoint: $s3-endpoint
+            enabled#fallback: false
             endpoint#env: S3_ENDPOINT
-            bucket: $s3-bucket
+            endpoint#fallback: storage.yandexcloud.net
             bucket#env: S3_BUCKET
-            access-key: $s3-access-key
+            bucket#fallback: ''
             access-key#env: S3_ACCESS_KEY_ID
-            secret-key: $s3-secret-key
+            access-key#fallback: ''
             secret-key#env: S3_SECRET_ACCESS_KEY
+            secret-key#fallback: ''
             timeout-ms: 10000
 
         registration-service:
@@ -242,3 +242,52 @@ components_manager:
             auth:
                 types:
                   - jwt
+
+        quiz-service: {}
+        media-service: {}
+        handler-create-quiz:
+            path: /v1/quizzes
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 1048576
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+        handler-update-quiz:
+            path: /v1/quizzes/{quiz_id}
+            method: PUT
+            task_processor: main-task-processor
+            max_request_size: 1048576
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+        handler-get-quiz:
+            path: /v1/quizzes/{quiz_id}
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+        handler-list-quizzes:
+            path: /v1/quizzes
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+        handler-upload-image:
+            path: /v1/media/images
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 5300000
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-frontend-quiz-js:
+            path: /quiz.js
+            method: GET
+            task_processor: main-task-processor

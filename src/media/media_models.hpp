@@ -10,6 +10,7 @@ namespace RumpelQuiz {
 
 struct UploadedImage {
     boost::uuids::uuid id;
+    std::string image_url;
 };
 
 enum class UploadImageError {

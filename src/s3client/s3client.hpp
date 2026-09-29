@@ -12,6 +12,8 @@ class S3Client final : public S3ClientBase {
   S3Client(std::shared_ptr<userver::s3api::Client> client, S3ClientConfig config);
   SaveImageResponse SaveImage(std::string_view contents, std::string_view key,
                              std::string_view content_type) const override;
+  LoadImageResponse LoadImage(std::string_view key) const override;
+  std::string DownloadUrl(std::string_view key) const override;
 
  private:
   std::shared_ptr<userver::s3api::Client> client_;

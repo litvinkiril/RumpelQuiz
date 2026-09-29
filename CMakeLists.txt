@@ -23,14 +23,18 @@ endif()
 userver_setup_environment()
 
 find_package(OpenSSL REQUIRED)
+find_package(ICU REQUIRED COMPONENTS uc)
+find_library(WEBP_LIBRARY webp REQUIRED)
+find_path(STB_INCLUDE_DIR stb/stb_image.h REQUIRED)
 find_library(CRYPT_LIBRARY crypt REQUIRED)
 
 # Embed the frontend into the service: one origin, no extra server or npm build.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-    frontend/index.html frontend/styles.css frontend/app.js)
+    frontend/index.html frontend/styles.css frontend/app.js frontend/quiz.js)
 file(READ frontend/index.html FRONTEND_HTML)
 file(READ frontend/styles.css FRONTEND_CSS)
 file(READ frontend/app.js FRONTEND_JS)
+file(READ frontend/quiz.js FRONTEND_QUIZ_JS)
 configure_file(src/frontend/assets.hpp.in generated/frontend_assets.hpp @ONLY)
 
 
@@ -79,19 +83,30 @@ add_library(
     src/email/postbox/postbox_client.cpp
     src/email/service/email_service.cpp
     src/email/signing/aws_signature_v4.cpp
+    src/quiz/authoring/handlers/save_quiz_handler.cpp
+    src/quiz/authoring/handlers/get_quiz_handler.cpp
+    src/quiz/authoring/handlers/serialization/quiz_json.cpp
+    src/quiz/authoring/service/quiz_service.cpp
+    src/quiz/authoring/service/quiz_validation.cpp
+    src/quiz/authoring/repository/quiz_repository.cpp
+    src/media/handlers/upload_image_handler.cpp
+    src/media/service/media_service.cpp
+    src/media/service/image_validation.cpp
+    src/media/repository/media_repository.cpp
     src/s3client/s3client.cpp
     src/s3client/s3client_component.cpp
 )
 target_include_directories(
     ${PROJECT_NAME}_objs
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src"
-    PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated"
+    PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated" ${STB_INCLUDE_DIR}
 )
 target_link_libraries(
     ${PROJECT_NAME}_objs
     PUBLIC userver::core #
            userver::postgresql
            userver::s3api
+           ICU::uc ${WEBP_LIBRARY}
            OpenSSL::Crypto
            ${CRYPT_LIBRARY}
 )
@@ -123,6 +138,7 @@ add_executable(
     tests/unit/auth/crypto_test.cpp
     tests/unit/education/admin_access_test.cpp
     tests/unit/s3client/s3client_test.cpp
+    tests/unit/quiz/quiz_test.cpp
 )
 target_link_libraries(${PROJECT_NAME}_unittest PRIVATE ${PROJECT_NAME}_objs userver::utest)
 add_dependencies(${PROJECT_NAME}_unittest ${PROJECT_NAME}_headers)
