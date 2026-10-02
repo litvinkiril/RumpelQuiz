@@ -30,11 +30,14 @@ find_library(CRYPT_LIBRARY crypt REQUIRED)
 
 # Embed the frontend into the service: one origin, no extra server or npm build.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-    frontend/index.html frontend/styles.css frontend/app.js frontend/quiz.js)
+    frontend/index.html frontend/styles.css frontend/app.js frontend/quiz.js
+    frontend/game.js frontend/vendor/qrcode.js)
 file(READ frontend/index.html FRONTEND_HTML)
 file(READ frontend/styles.css FRONTEND_CSS)
 file(READ frontend/app.js FRONTEND_JS)
 file(READ frontend/quiz.js FRONTEND_QUIZ_JS)
+file(READ frontend/game.js FRONTEND_GAME_JS)
+file(READ frontend/vendor/qrcode.js FRONTEND_QR_JS)
 configure_file(src/frontend/assets.hpp.in generated/frontend_assets.hpp @ONLY)
 
 
@@ -74,6 +77,7 @@ add_library(
     src/auth/repositories/session/session_repository.cpp
     src/auth/services/refresh_token/refresh_token_service.cpp
     src/auth/services/auth_session/auth_session_service.cpp
+    src/game/service/game_session_service.cpp
     src/auth/handlers/session/session_handlers.cpp
     src/auth/services/login/login_service.cpp
     src/auth/services/password/password_hasher.cpp
@@ -93,8 +97,14 @@ add_library(
     src/media/service/media_service.cpp
     src/media/service/image_validation.cpp
     src/media/repository/media_repository.cpp
+    src/game/repository/game_session_repository.cpp
+    src/game/repository/game_play_repository.cpp
+    src/game/handlers/game_play_handler.cpp
     src/s3client/s3client.cpp
     src/s3client/s3client_component.cpp
+    src/game/handlers/create_game_session_handler.cpp
+    src/game/handlers/next_game_question_handler.cpp
+    src/game/handlers/close_game_session_handler.cpp
 )
 target_include_directories(
     ${PROJECT_NAME}_objs

@@ -79,6 +79,13 @@ JsonValue MakeServiceErrorResponse(
                 "quiz_revision_conflict"
             );
 
+        case SaveQuizError::kPublished:
+            return MakeErrorResponse(
+                request,
+                HttpStatus::kConflict,
+                "quiz_published"
+            );
+
         case SaveQuizError::kValidationFailed:
             return MakeErrorResponse(
                 request,

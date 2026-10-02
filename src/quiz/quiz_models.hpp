@@ -74,6 +74,7 @@ enum class SaveQuizError {
     kAccessDenied,
     kNotFound,
     kRevisionConflict,
+    kPublished,
     kValidationFailed
 };
 

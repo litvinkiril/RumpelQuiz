@@ -1,8 +1,21 @@
 import {newQuiz, newQuestion, newAnswer, questionComplete, quizPayload, renderQuiz} from './quiz.js';
+import {createGameController, renderGame, gameSeconds} from './game.js';
 export const messages = {
+  game_access_denied: 'Нет доступа к этой сессии. Проверьте аккаунт и роль в вузе.',
+  game_university_mismatch: 'Подключиться может студент того же вуза, в котором проводится квиз.',
+  game_not_found: 'Активная сессия с таким кодом не найдена.',
+  quiz_not_ready: 'Сначала опубликуйте квиз.',
+  request_id_conflict: 'Не удалось восстановить создание сессии. Обновите страницу.',
+  join_code_unavailable: 'Не удалось получить свободный код. Попробуйте ещё раз.',
+  session_closed: 'Сессия уже закрыта.',
+  session_state_changed: 'Вопрос уже сменился. Обновите состояние игры.',
+  no_more_questions: 'Это последний вопрос. Можно закрыть сессию.',
+  question_closed: 'Приём ответов на этот вопрос завершён.',
+  answer_already_saved: 'Ваш ответ уже сохранён.',
   quiz_access_denied: 'Создавать квизы могут преподаватели и администраторы выбранного вуза.',
   quiz_not_found: 'Квиз не найден или доступ к нему изменился.',
   quiz_revision_conflict: 'Квиз изменён в другой вкладке. Скопируйте свои изменения и заново откройте квиз из списка.',
+  quiz_published: 'Квиз опубликован. Редактирование и возврат в черновик недоступны.',
   quiz_validation_failed: 'Проверьте отмеченные поля. Незавершённый квиз можно сохранить как черновик.',
   image_storage_unavailable: 'Хранилище картинок недоступно. Попробуйте загрузить файл ещё раз.',
   invalid_image: 'Не удалось прочитать картинку. Выберите другой файл.',
@@ -35,7 +48,7 @@ export function createApi(fetcher = globalThis.fetch) {
     const timeout = setTimeout(() => abort.abort(), 15000);
     try {
       const url = path === 'profile' ? '/v1/user/profile'
-        : /^(education\/|quizzes(?:\/|$)|media\/)/.test(path) ? '/v1/' + path : '/v1/auth/' + path;
+        : /^(education\/|quizzes(?:\/|$)|media\/|game\/)/.test(path) ? '/v1/' + path : '/v1/auth/' + path;
       const multipart = typeof FormData !== 'undefined' && data instanceof FormData;
       const response = await fetcher(url, {
         method: method || (data === undefined ? 'GET' : 'POST'),
@@ -66,7 +79,7 @@ export function validatePassword(password, confirmation) {
   return '';
 }
 const KEY = 'rumpelquiz.auth';
-export function createController({api = createApi(), storage, onChange = () => {}, now = Date.now} = {}) {
+export function createController({api = createApi(), storage, onChange = () => {}, now = Date.now, makeGameId, origin = globalThis.location?.origin || 'http://localhost:8080', joinCode = ''} = {}) {
   let sequence = 0;
   const state = {screen: 'login', email: '', token: '', refreshToken: '', sessionId: '', userId: '', verificationId: '',
     purpose: 'register', resetToken: '', resendAt: 0, busy: false, error: '', success: '', profile: null,
@@ -97,14 +110,15 @@ export function createController({api = createApi(), storage, onChange = () => {
     })); } catch {}
   };
   const emit = () => { persist(); onChange({...state}); };
-  const run = async (work, apply) => {
+  const run = async (work, apply, {background=false} = {}) => {
     if (state.busy) return false;
     const current = ++sequence;
-    state.busy = true; state.error = ''; state.success = ''; emit();
+    let changed = true;
+    if (!background) { state.busy = true; state.error = ''; state.success = ''; emit(); }
     try {
       const result = await work();
       if (current !== sequence) return false;
-      apply(result);
+      changed = apply(result) !== false;
       return true;
     } catch (error) {
       if (current === sequence) {
@@ -122,7 +136,10 @@ export function createController({api = createApi(), storage, onChange = () => {
       }
       return false;
     } finally {
-      if (current === sequence) { state.busy = false; emit(); }
+      if (current === sequence) {
+        if (!background) state.busy = false;
+        if (changed) emit();
+      }
     }
   };
   const fail = (message) => { state.error = message; state.success = ''; emit(); return Promise.resolve(false); };
@@ -138,18 +155,30 @@ export function createController({api = createApi(), storage, onChange = () => {
     return {token: result.access_token, refreshToken: result.refresh_token || '',
       sessionId: result.session_id || '', userId: user.user_id};
   };
+  let refreshPending = null;
   const authorized = async (path, data, method) => {
     const current = sequence;
-    try { return await api(path, data, state.token, ...(method ? [method] : [])); }
+    const accessToken = state.token;
+    try { return await api(path, data, accessToken, ...(method ? [method] : [])); }
     catch (error) {
       if (error.status !== 401 || !state.refreshToken || !state.sessionId || current !== sequence) throw error;
-      const tokens = await api('refresh', {session_id: state.sessionId, refresh_token: state.refreshToken});
+      if (accessToken !== state.token) return api(path, data, state.token, ...(method ? [method] : []));
+      const refreshToken = state.refreshToken, sessionId = state.sessionId;
+      if (!refreshPending || refreshPending.token !== refreshToken || refreshPending.session !== sessionId) {
+        const pending = {token:refreshToken, session:sessionId};
+        pending.promise = (async()=>{
+          const tokens = await api('refresh', {session_id:sessionId, refresh_token:refreshToken});
+          if (state.refreshToken !== refreshToken || state.sessionId !== sessionId) throw new ApiError('Запрос отменён.');
+          if (!tokens.access_token || !tokens.refresh_token || !tokens.session_id)
+            throw new ApiError('Сервер не вернул токены сессии.', 401);
+          state.token = tokens.access_token; state.refreshToken = tokens.refresh_token; state.sessionId = tokens.session_id;
+          // Persist a consumed refresh token's replacement even if navigation cancelled its request.
+          persist();
+        })().finally(()=>{ if (refreshPending === pending) refreshPending = null; });
+        refreshPending = pending;
+      }
+      await refreshPending.promise;
       if (current !== sequence) throw new ApiError('Запрос отменён.');
-      if (!tokens.access_token || !tokens.refresh_token || !tokens.session_id)
-        throw new ApiError('Сервер не вернул токены сессии.', 401);
-      state.token = tokens.access_token; state.refreshToken = tokens.refresh_token; state.sessionId = tokens.session_id;
-      // Save rotation before retrying: a network failure must not restore a used token.
-      persist();
       return api(path, data, state.token, ...(method ? [method] : []));
     }
   };
@@ -159,12 +188,15 @@ export function createController({api = createApi(), storage, onChange = () => {
     return {token: state.token, refreshToken: state.refreshToken, sessionId: state.sessionId, userId: user.user_id};
   };
   const setAccount = ({token, refreshToken, sessionId, userId}) => {
+    game.resetGameView();
     state.token = token; state.refreshToken = refreshToken; state.sessionId = sessionId;
     state.userId = userId; state.screen = 'account'; state.profile = null;
     clearEducation();
     state.verificationId = ''; state.resetToken = ''; state.resendAt = 0;
   };
+  const game = createGameController({state, authorized, run, emit, fail, storage, now, makeId:makeGameId, origin, joinCode});
   return {
+    ...game,
     state,
     openQuizzes(create = false) {
       if (!state.token || state.busy) return Promise.resolve(false);
@@ -192,6 +224,7 @@ export function createController({api = createApi(), storage, onChange = () => {
     },
     editQuiz(field,value,qi,ai) {
       if(state.busy || state.screen!=='quiz') return;
+      if(state.quizDraft.status==='ready') return;
       const d=state.quizDraft,q=d.questions[qi];
       const target=ai===undefined ? (q || d):q?.answers[ai];
       if(!target) return;
@@ -203,6 +236,7 @@ export function createController({api = createApi(), storage, onChange = () => {
     },
     changeQuiz(action,qi,ai) {
       if(state.busy || state.screen!=='quiz') return;
+      if(state.quizDraft.status==='ready') return;
       const d=state.quizDraft,q=d.questions[qi];
       if(action==='quiz-add-question') {
         if(d.questions.length>=100 || !d.questions.every(q=>questionComplete(q,d.default_time_seconds))) return;
@@ -216,17 +250,19 @@ export function createController({api = createApi(), storage, onChange = () => {
     },
     saveQuiz(status) {
       if(state.busy || state.screen!=='quiz') return Promise.resolve(false);
+      if(state.quizDraft.status==='ready') return Promise.resolve(false);
       const d=state.quizDraft;
       if(!d.university_id) return fail('Выберите учебное заведение.');
       if(!(Number(d.default_time_seconds)>0) || d.questions.some(q=>q.time_seconds!==null && !(Number(q.time_seconds)>0))) return fail('Время должно быть больше нуля. Пустое время вопроса означает время по умолчанию.');
       state.quizErrors=[];
       return run(()=>authorized('quizzes'+(d.id?'/'+d.id:''),quizPayload(d,status),d.id?'PUT':'POST'),result=>{
         d.id=result.quiz_id;d.revision=result.revision;d.status=result.status;state.quizDirty=false;
-        state.success=result.status==='draft'?'Черновик сохранён. Его можно открыть в «Мои квизы».':'Квиз сохранён и готов к будущему запуску.';
+        state.success=result.status==='draft'?'Черновик сохранён. Его можно открыть в «Мои квизы».':'Квиз опубликован. Редактирование больше недоступно.';
       });
     },
     uploadQuizImage(file,qi,ai) {
       if(state.busy || state.screen!=='quiz' || !file) return Promise.resolve(false);
+      if(state.quizDraft.status==='ready') return Promise.resolve(false);
       const q=state.quizDraft.questions[qi],target=ai===undefined?q:q.answers[ai];
       if(file.size>5242880) return fail('Максимальный размер картинки — 5 МиБ.');
       if(!['image/png','image/jpeg','image/webp'].includes(file.type)) return fail(messages.unsupported_image_format);
@@ -258,7 +294,7 @@ export function createController({api = createApi(), storage, onChange = () => {
       state.verificationId = ''; state.resetToken = ''; state.resendAt = 0; emit();
     },
     async start() {
-      if (state.token) return run(currentAccount, setAccount);
+      if (state.token) {const ok=await run(currentAccount, setAccount); if(ok) await game.resumeGame(); return ok;}
       emit(); return true;
     },
     openProfile() {
@@ -329,7 +365,7 @@ export function createController({api = createApi(), storage, onChange = () => {
       const error = validatePassword(password);
       if (error) return fail(error);
       state.email = email.trim();
-      return run(async () => authenticate(await api('login', {email: state.email, password})), setAccount);
+      return run(async () => authenticate(await api('login', {email: state.email, password})), setAccount).then(async ok=>{if(ok) await game.resumeGame(); return ok;});
     },
     register(email, password, confirmation) {
       if (state.busy) return Promise.resolve(false);
@@ -354,7 +390,7 @@ export function createController({api = createApi(), storage, onChange = () => {
           state.resetToken = result.reset_token; state.verificationId = ''; state.screen = 'password';
         });
       }
-      return run(async () => authenticate(await api('verify-email', payload)), setAccount);
+      return run(async () => authenticate(await api('verify-email', payload)), setAccount).then(async ok=>{if(ok) await game.resumeGame(); return ok;});
     },
     resend() {
       if (state.resendAt > now()) return Promise.resolve(false);
@@ -386,6 +422,7 @@ export function createController({api = createApi(), storage, onChange = () => {
       Object.assign(state, {screen: 'login', token: '', refreshToken: '', sessionId: '', userId: '', verificationId: '', resetToken: '', profile: null,
         resendAt: 0, busy: false, error: '', success: 'Вы вышли из аккаунта.'});
       clearEducation();
+      game.resetGameView();
       try { storage?.removeItem(KEY); } catch {}
       emit();
       });
@@ -434,7 +471,9 @@ export function renderView(state) {
     : state.success ? `<div class="notice success" role="status">${escapeHtml(state.success)}</div>` : '';
   const back = (target = 'login') => `<button type="button" class="text-button back" data-nav="${target}">← Вернуться ко входу</button>`;
   let content;
-  if (screen === 'quiz' || screen === 'quizzes') {
+  if (screen === 'game' || screen === 'game-join') {
+    content = renderGame(state, notice);
+  } else if (screen === 'quiz' || screen === 'quizzes') {
     content = renderQuiz(state, notice);
   } else if (screen === 'login' || screen === 'register') {
     const register = screen === 'register';
@@ -540,8 +579,9 @@ export function renderView(state) {
       ${notice}<div class="quiz-symbol" aria-hidden="true">?</div>
       <button type="button" class="primary quiz-button" data-action="create-quiz">＋ Создать квиз</button>
       <button type="button" class="secondary quiz-button" data-action="my-quizzes">Мои квизы →</button>
-      <button type="button" class="primary quiz-button" disabled><strong>Пройти квиз</strong><span class="soon">Скоро</span></button>
-      <p class="hint">Здесь появятся квизы вашего учебного заведения.</p></div>`;
+      <button type="button" class="primary quiz-button" data-action="game-join">Присоединиться по коду</button>
+      ${state.game?'<button type="button" class="text-button" data-action="game-resume">Вернуться в сессию →</button>':''}
+      <p class="hint">Чтобы провести игру, откройте опубликованный квиз в «Мои квизы».</p></div>`;
   }
   return `<div class="auth-card" aria-busy="${busy}">${content}</div>`;
 }
@@ -555,7 +595,7 @@ export function mountApp(root, options = {}) {
     const focusName = root.ownerDocument.activeElement?.getAttribute('name');
     const focusId = root.ownerDocument.activeElement?.id;
     root.innerHTML = renderView(state);
-    const signedIn = ['account', 'profile', 'university', 'admins', 'people', 'quiz', 'quizzes'].includes(state.screen);
+    const signedIn = ['account', 'profile', 'university', 'admins', 'people', 'quiz', 'quizzes', 'game', 'game-join'].includes(state.screen);
     root.ownerDocument.body.classList.toggle('signed-in', signedIn);
     const nav = root.ownerDocument.getElementById('account-nav');
     if (nav) {
@@ -592,8 +632,14 @@ export function mountApp(root, options = {}) {
     lastContactId = state.selectedAdmin?.membership_id || state.selectedAdmin?.user_id || null;
     tick();
   };
-  controller = createController({...options, onChange: render});
+  controller = createController({...options, joinCode:new URL(root.ownerDocument.defaultView.location.href).searchParams.get('join') || '', onChange: render});
   const tick = () => {
+    const secondsLeft=gameSeconds(controller.state);
+    const timer=root.querySelector('[data-game-timer]');
+    if(timer) timer.textContent=secondsLeft>0?secondsLeft+' с':'Время истекло';
+    if(timer && secondsLeft===0) {
+      root.querySelectorAll('[data-game-answer], [data-action="game-submit"]').forEach(el=>{el.disabled=true;});
+    }
     const button = root.querySelector('[data-action="resend"]');
     if (!button) return;
     const seconds = controller.remaining();
@@ -601,6 +647,9 @@ export function mountApp(root, options = {}) {
     button.textContent = seconds > 0 ? `Новый код через ${seconds} с` : 'Получить новый код';
   };
   const interval = setInterval(tick, 1000);
+  const gameInterval = setInterval(()=>{
+    if(!root.ownerDocument.hidden && !root.querySelector('.game-network[open]')) void controller.pollGame();
+  }, 2500);
   const canLeave = () => !controller.state.quizDirty || controller.state.screen!=='quiz' || root.ownerDocument.defaultView.confirm('Есть несохранённые изменения. Выйти из редактора?');
   const beforeUnload = event => { if(controller.state.screen==='quiz' && controller.state.quizDirty) {event.preventDefault();event.returnValue='';} };
   root.ownerDocument.defaultView.addEventListener('beforeunload',beforeUnload);
@@ -616,6 +665,9 @@ export function mountApp(root, options = {}) {
     const dirty=root.querySelector('[data-quiz-dirty]');if(dirty) dirty.textContent='Есть несохранённые изменения';
   });
   root.addEventListener('change', event => {
+    if(event.target.dataset.gameAnswer) {
+      controller.chooseGameAnswer(event.target.dataset.gameAnswer,event.target.checked); return;
+    }
     const el=event.target,qi=el.dataset.q===undefined?undefined:Number(el.dataset.q),ai=el.dataset.a===undefined?undefined:Number(el.dataset.a);
     if(el.hasAttribute('data-quiz-image')) {void controller.uploadQuizImage(el.files?.[0],qi,ai);return;}
     if(el.dataset.quizField && (el.tagName==='SELECT' || ['radio','checkbox'].includes(el.type))) {
@@ -627,6 +679,8 @@ export function mountApp(root, options = {}) {
     event.preventDefault();
     if (controller.state.busy) return;
     const form = event.target;
+    if(form.dataset.form==='game-join') {if(form.reportValidity()) void controller.joinGame(new FormData(form).get('game-code'));return;}
+    if(form.dataset.form==='game-origin') {if(form.reportValidity()) controller.setGameOrigin(new FormData(form).get('game-origin'));return;}
     if(form.dataset.form==='quiz') {void controller.saveQuiz('ready');return;}
     if (!form.reportValidity()) return;
     const data = Object.fromEntries(new FormData(form));
@@ -644,6 +698,13 @@ export function mountApp(root, options = {}) {
     if (button.dataset.nav) { if(canLeave()) controller.navigate(button.dataset.nav); return; }
     if (controller.state.busy) return;
     const action=button.dataset.action,qi=Number(button.dataset.q),ai=button.dataset.a===undefined?undefined:Number(button.dataset.a);
+    if(action==='game-create') void controller.createGame();
+    if(action==='game-next') void controller.nextGameQuestion();
+    if(action==='game-close') void controller.closeGame();
+    if(action==='game-join') controller.openGameJoin();
+    if(action==='game-resume') void controller.openLastGame();
+    if(action==='game-refresh') void controller.refreshGame();
+    if(action==='game-submit') void controller.submitGameAnswer();
     if(['create-quiz','my-quizzes','new-quiz','edit-quiz','profile','logout'].includes(action) && !canLeave()) return;
     if(action==='create-quiz') void controller.openQuizzes(true);
     if(action==='my-quizzes') void controller.openQuizzes();
@@ -671,7 +732,7 @@ export function mountApp(root, options = {}) {
     }
   });
   void controller.start();
-  return {controller, canLeave, destroy: () => {clearInterval(interval);root.ownerDocument.defaultView.removeEventListener('beforeunload',beforeUnload);}};
+  return {controller, canLeave, destroy: () => {clearInterval(interval);clearInterval(gameInterval);root.ownerDocument.defaultView.removeEventListener('beforeunload',beforeUnload);}};
 }
 if (typeof document !== 'undefined') {
   const root = document.getElementById('app');

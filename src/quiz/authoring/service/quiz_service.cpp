@@ -41,6 +41,9 @@ SaveQuizResult QuizService::SaveQuiz(
     if (old->university_id != input.university_id &&
         !can_author(old->university_id))
       return SaveQuizFailure{SaveQuizError::kAccessDenied, {}};
+    // The row lock serializes publication with all concurrent edits.
+    if (old->status == "ready")
+      return SaveQuizFailure{SaveQuizError::kPublished, {}};
     if (old->revision != *input.revision)
       return SaveQuizFailure{SaveQuizError::kRevisionConflict, {}};
   }

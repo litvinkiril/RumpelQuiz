@@ -86,6 +86,7 @@ async def test_quiz_access_and_images(service_client, pgsql):
     cursor.execute("INSERT INTO media.images(id,owner_id,storage_key,content_type,size_bytes,width,height,status,ready_at) VALUES(%s,%s,%s,'image/png',10,1,1,'ready',NOW())", (image_id, user, 'test/' + image_id))
     body = document(uni)
     body['questions'][0]['answers'][0].update(text='', image_id=image_id)
+    body['status'] = 'draft'
     created = await save(service_client, user, body)
     assert created.status == 201
     quiz = created.json()['quiz_id']
@@ -105,11 +106,39 @@ async def test_quiz_access_and_images(service_client, pgsql):
 
 async def test_quiz_concurrent_revision(service_client, pgsql):
     _, user, uni = setup(pgsql)
-    body = document(uni)
+    body = document(uni, 'draft')
     quiz = (await save(service_client, user, body)).json()['quiz_id']
     body['revision'] = 1
     replies = await asyncio.gather(save(service_client, user, body, quiz), save(service_client, user, body, quiz))
     assert sorted(r.status for r in replies) == [200, 409]
+
+
+@pytest.mark.parametrize('status', ['draft', 'ready'])
+async def test_published_quiz_cannot_change(service_client, pgsql, status):
+    _, user, uni = setup(pgsql)
+    body = document(uni)
+    quiz = (await save(service_client, user, body)).json()['quiz_id']
+    before = (await service_client.get('/v1/quizzes/' + quiz, headers=auth_headers(user))).json()
+    body.update(revision=1, status=status, name='Изменённое название')
+    body['questions'][0]['answers'][0]['text'] = 'Изменённый ответ'
+    response = await save(service_client, user, body, quiz)
+    assert response.status == 409
+    assert response.json()['error'] == 'quiz_published'
+    after = (await service_client.get('/v1/quizzes/' + quiz, headers=auth_headers(user))).json()
+    assert after == before
+
+
+async def test_concurrent_publication_preserves_questions(service_client, pgsql):
+    _, user, uni = setup(pgsql)
+    body = document(uni, 'draft')
+    quiz = (await save(service_client, user, body)).json()['quiz_id']
+    body.update(revision=1, status='ready')
+    replies = await asyncio.gather(save(service_client, user, body, quiz), save(service_client, user, body, quiz))
+    assert sorted(r.status for r in replies) == [200, 409]
+    rejected = next(r for r in replies if r.status == 409)
+    assert rejected.json()['error'] == 'quiz_published'
+    body.update(revision=2, status='draft')
+    assert (await save(service_client, user, body, quiz)).json()['error'] == 'quiz_published'
 
 
 async def test_quiz_multy_and_empty_draft(service_client, pgsql):

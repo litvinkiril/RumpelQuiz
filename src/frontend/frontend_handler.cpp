@@ -20,6 +20,14 @@ std::string FrontendHandler::HandleRequestThrow(
                      "connect-src 'self'; frame-ancestors 'none'; base-uri "
                      "'none'; form-action 'self'");
   const auto& path = request.GetRequestPath();
+  if (path == "/game.js") {
+    response.SetContentType("text/javascript; charset=utf-8");
+    return std::string{FrontendAssets::kGameJs};
+  }
+  if (path == "/vendor/qrcode.js") {
+    response.SetContentType("text/javascript; charset=utf-8");
+    return std::string{FrontendAssets::kQrJs};
+  }
   if (path == "/quiz.js") {
     response.SetContentType("text/javascript; charset=utf-8");
     return std::string{FrontendAssets::kQuizJs};

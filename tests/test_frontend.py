@@ -5,6 +5,8 @@ import pytest
     ('/', 'text/html', 'RumpelQuiz'),
     ('/styles.css', 'text/css', '@media'),
     ('/app.js', 'text/javascript', 'createController'),
+    ('/game.js', 'text/javascript', 'createGameController'),
+    ('/vendor/qrcode.js', 'text/javascript', 'qrcode'),
 ])
 async def test_frontend_assets(service_client, path, content_type, marker):
     response = await service_client.get(path)

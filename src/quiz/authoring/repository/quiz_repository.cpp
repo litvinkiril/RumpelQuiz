@@ -27,7 +27,7 @@ std::optional<StoredQuiz> QuizRepository::FindOwnedForUpdate(
     userver::storages::postgres::Transaction& tx, const boost::uuids::uuid& id,
     const boost::uuids::uuid& owner) const {
   auto r = tx.Execute(
-      "SELECT university_id,revision FROM quiz.quizzes WHERE id=$1 AND "
+      "SELECT university_id,revision,status FROM quiz.quizzes WHERE id=$1 AND "
       "author_id=$2 FOR UPDATE",
       id, owner);
   if (r.IsEmpty()) return std::nullopt;

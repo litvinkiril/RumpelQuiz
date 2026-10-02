@@ -182,6 +182,38 @@ components_manager:
 
         education-service: {}
 
+        game-session-service: {}
+        handler-frontend-game-js:
+            path: /game.js
+            method: GET
+            task_processor: main-task-processor
+        handler-frontend-qr-js:
+            path: /vendor/qrcode.js
+            method: GET
+            task_processor: main-task-processor
+        handler-game-state:
+            path: /v1/game/sessions/{session_id}
+            method: GET
+            task_processor: main-task-processor
+            auth:
+                types: [jwt]
+        handler-game-join:
+            path: /v1/game/sessions/join
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            auth:
+                types: [jwt]
+        handler-game-answer:
+            path: /v1/game/sessions/{session_id}/answers
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            auth:
+                types: [jwt]
+
         resend-code-service:
             verification-code-ttl-seconds: $email-verification-code-ttl-seconds
 
@@ -291,3 +323,33 @@ components_manager:
             path: /quiz.js
             method: GET
             task_processor: main-task-processor
+
+        handler-create-game-session:
+            path: /v1/game/sessions
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-next-game-question:
+            path: /v1/game/sessions/{session_id}/next
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-close-game-session:
+            path: /v1/game/sessions/{session_id}/close
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]

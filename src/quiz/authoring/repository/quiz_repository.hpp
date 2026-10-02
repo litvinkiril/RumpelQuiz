@@ -7,6 +7,7 @@ namespace RumpelQuiz {
 struct StoredQuiz {
   boost::uuids::uuid university_id;
   std::int64_t revision;
+  std::string status;
 };
 class QuizRepository {
  public:

@@ -39,10 +39,14 @@
 #include "education/handlers/get_university_admins_handler.hpp"
 #include "education/service/education_service.hpp"
 #include "education/handlers/search_university_people_handler.hpp"
-
+#include "game/handlers/create_game_session_handler.hpp"
+#include "game/handlers/game_play_handler.hpp"
+#include "game/handlers/next_game_question_handler.hpp"
+#include "game/handlers/close_game_session_handler.hpp"
 #include "quiz/authoring/handlers/save_quiz_handler.hpp"
 #include "quiz/authoring/handlers/get_quiz_handler.hpp"
 #include "media/handlers/upload_image_handler.hpp"
+#include "game/service/game_session_service.hpp"
 
 int main(int argc, char* argv[]) {
   userver::server::handlers::auth::RegisterAuthCheckerFactory<
@@ -60,6 +64,8 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::FrontendHandler>("handler-frontend-css")
           .Append<RumpelQuiz::FrontendHandler>("handler-frontend-js")
           .Append<RumpelQuiz::FrontendHandler>("handler-frontend-quiz-js")
+          .Append<RumpelQuiz::FrontendHandler>("handler-frontend-game-js")
+          .Append<RumpelQuiz::FrontendHandler>("handler-frontend-qr-js")
           .Append<RumpelQuiz::Hello>()
           .Append<userver::components::Postgres>("postgres-db-1")
           .Append<RumpelQuiz::HelloPostgres>()
@@ -94,7 +100,14 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::ForgotPasswordEmailHandler>()
           .Append<RumpelQuiz::ForgotPasswordVerifyHandler>()
           .Append<RumpelQuiz::ForgotPasswordUpdateHandler>()
-          .Append<RumpelQuiz::ForgotPasswordService>();
+          .Append<RumpelQuiz::ForgotPasswordService>()
+          .Append<RumpelQuiz::CreateGameSessionHandler>()
+          .Append<RumpelQuiz::NextGameQuestionHandler>()
+          .Append<RumpelQuiz::CloseGameSessionHandler>()
+          .Append<RumpelQuiz::GameSessionService>()
+          .Append<RumpelQuiz::GamePlayHandler>()
+          .Append<RumpelQuiz::GamePlayHandler>("handler-game-join")
+          .Append<RumpelQuiz::GamePlayHandler>("handler-game-answer");
 
   return userver::utils::DaemonMain(argc, argv, component_list);
 }

@@ -40,3 +40,27 @@ test('API sends PUT JSON and uploads FormData without overriding boundary',async
  await api('quizzes/q',{},'token','PUT');assert.equal(requests[0].url,'/v1/quizzes/q');assert.equal(requests[0].method,'PUT');
  await api('media/images',new FormData(),'token');assert.equal(requests[1].headers['Content-Type'],undefined);
 });
+
+test('published quiz is read-only after loading and after publication',async()=>{
+ const calls=[];
+ const d=newQuiz(uni);d.id='q1';d.status='ready';d.revision=1;
+ const c=setup(async(path,data)=>{
+  calls.push(path);
+  if(path==='profile')return profile;
+  if(path==='quizzes/q1')return {quiz:structuredClone(d)};
+  return {quiz_id:'q1',revision:1,status:'ready'};
+ });
+ await c.loadQuiz('q1');
+ const before=structuredClone(c.state.quizDraft),count=calls.length;
+ c.editQuiz('name','Changed');c.changeQuiz('quiz-add-answer',0);
+ assert.equal(await c.saveQuiz('draft'),false);
+ assert.equal(await c.uploadQuizImage(new Blob(['image'],{type:'image/png'}),0),false);
+ assert.deepEqual(c.state.quizDraft,before);assert.equal(calls.length,count);
+ const html=renderQuiz(c.state,'');
+ assert.match(html,/Просмотр квиза/);assert.match(html,/<fieldset class="quiz-fields" disabled>/);
+ assert.ok(!html.includes('quiz-save-draft'));assert.ok(!html.includes('type="submit"'));
+ await c.openQuizzes(true);
+ await c.saveQuiz('ready');
+ assert.equal(c.state.quizDraft.status,'ready');
+ assert.equal(await c.saveQuiz('draft'),false);
+});
