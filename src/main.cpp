@@ -43,6 +43,8 @@
 #include "game/handlers/game_play_handler.hpp"
 #include "game/handlers/next_game_question_handler.hpp"
 #include "game/handlers/close_game_session_handler.hpp"
+#include "game/handlers/game_events_handler.hpp"
+#include "game/service/game_events.hpp"
 #include "quiz/authoring/handlers/save_quiz_handler.hpp"
 #include "quiz/authoring/handlers/get_quiz_handler.hpp"
 #include "media/handlers/upload_image_handler.hpp"
@@ -104,6 +106,8 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::CreateGameSessionHandler>()
           .Append<RumpelQuiz::NextGameQuestionHandler>()
           .Append<RumpelQuiz::CloseGameSessionHandler>()
+          .Append<RumpelQuiz::GameEvents>()
+          .Append<RumpelQuiz::GameEventsHandler>()
           .Append<RumpelQuiz::GameSessionService>()
           .Append<RumpelQuiz::GamePlayHandler>()
           .Append<RumpelQuiz::GamePlayHandler>("handler-game-join")

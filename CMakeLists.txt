@@ -78,6 +78,7 @@ add_library(
     src/auth/services/refresh_token/refresh_token_service.cpp
     src/auth/services/auth_session/auth_session_service.cpp
     src/game/service/game_session_service.cpp
+    src/game/service/game_events.cpp
     src/auth/handlers/session/session_handlers.cpp
     src/auth/services/login/login_service.cpp
     src/auth/services/password/password_hasher.cpp
@@ -105,6 +106,7 @@ add_library(
     src/game/handlers/create_game_session_handler.cpp
     src/game/handlers/next_game_question_handler.cpp
     src/game/handlers/close_game_session_handler.cpp
+    src/game/handlers/game_events_handler.cpp
 )
 target_include_directories(
     ${PROJECT_NAME}_objs

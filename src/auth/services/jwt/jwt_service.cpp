@@ -211,7 +211,7 @@ AccessTokenClaims JwtService::VerifyAccessToken(std::string_view token) const {
     }
 
     return {boost::uuids::string_generator{}(subject),
-            boost::uuids::string_generator{}(session)};
+            boost::uuids::string_generator{}(session), expires_at};
   } catch (const JwtError&) {
     throw;
   } catch (const std::exception&) {

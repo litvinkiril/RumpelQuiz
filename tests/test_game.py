@@ -17,7 +17,7 @@ async def game(client, pgsql, status='ready'):
     body['questions'][1]['type'] = 'multy'
     quiz = (await save(client, host, body)).json()['quiz_id']
     sid = str(uuid.uuid4())
-    created = await client.post('/v1/game/sessions', json={'quiz_id': quiz, 'session_id': sid}, headers=auth_headers(host))
+    created = await client.post('/v1/game/sessions', json={'quiz_id': quiz, 'session_id': sid, 'name': 'Практика 3'}, headers=auth_headers(host))
     return cursor, host, uni, quiz, sid, created
 
 
@@ -38,7 +38,7 @@ async def test_game_lifecycle_and_retries(service_client, pgsql):
     assert created.status == 200, created.text
     room = created.json()['session']
     assert len(room['join_code']) == 6 and room['join_code'].isdigit()
-    again = await service_client.post('/v1/game/sessions', json={'quiz_id': quiz, 'session_id': sid}, headers=auth_headers(host))
+    again = await service_client.post('/v1/game/sessions', json={'quiz_id': quiz, 'session_id': sid, 'name': 'Практика 3'}, headers=auth_headers(host))
     assert again.json() == created.json()
     assert (await read(service_client, host, sid)).json()['current_question'] is None
     student = create_user(c)
@@ -109,7 +109,7 @@ async def test_game_draft_and_revoked_host(service_client, pgsql):
 async def test_game_concurrent_create_next_and_answer(service_client, pgsql):
     c, host, uni, quiz, sid, created = await game(service_client, pgsql)
     new_id = str(uuid.uuid4())
-    replies = await asyncio.gather(*[service_client.post('/v1/game/sessions', json={'quiz_id': quiz, 'session_id': new_id}, headers=auth_headers(host)) for _ in range(2)])
+    replies = await asyncio.gather(*[service_client.post('/v1/game/sessions', json={'quiz_id': quiz, 'session_id': new_id, 'name': 'Практика 3'}, headers=auth_headers(host)) for _ in range(2)])
     assert [r.status for r in replies] == [200, 200]
     assert replies[0].json() == replies[1].json()
     replies = await asyncio.gather(*[action(service_client, host, sid, 'next', {'expected_question_id': None}) for _ in range(2)])
@@ -143,3 +143,38 @@ def test_game_schema_matches_fresh_database():
     root = Path(__file__).parents[1] / 'postgresql'
     embedded = (root / 'schemas/db_1.sql').read_text().split('-- BEGIN GAME SCHEMA\n')[1].split('-- END GAME SCHEMA')[0]
     assert embedded.strip() == (root / 'game_schema.sql').read_text().strip()
+
+
+async def test_game_session_name_validation(service_client, pgsql):
+    c, host, uni, quiz, sid, created = await game(service_client, pgsql)
+    assert created.json()['session']['name'] == 'Практика 3'
+    assert (await read(service_client, host, sid)).json()['session']['name'] == 'Практика 3'
+    for value in (None, 1, [], {}, '', '  ', '\u00a0\u2003', 'я' * 201, 'a\0b'):
+        response = await service_client.post('/v1/game/sessions', json={
+            'quiz_id': quiz, 'session_id': str(uuid.uuid4()), 'name': value,
+        }, headers=auth_headers(host))
+        assert response.status == 400, response.text
+    missing = await service_client.post('/v1/game/sessions', json={
+        'quiz_id': quiz, 'session_id': str(uuid.uuid4()),
+    }, headers=auth_headers(host))
+    assert missing.status == 400
+    conflict = await service_client.post('/v1/game/sessions', json={
+        'quiz_id': quiz, 'session_id': sid, 'name': 'Другая сессия',
+    }, headers=auth_headers(host))
+    assert conflict.status == 409
+    for name in ('Практика 3', 'я' * 200, '😀' * 200):
+        response = await service_client.post('/v1/game/sessions', json={
+            'quiz_id': quiz, 'session_id': str(uuid.uuid4()), 'name': '\u00a0  ' + name + '  ',
+        }, headers=auth_headers(host))
+        assert response.status == 200, response.text
+        assert response.json()['session']['name'] == name
+
+
+async def test_game_session_name_migration(service_client, pgsql):
+    c, host, uni, quiz, sid, created = await game(service_client, pgsql)
+    c.execute('ALTER TABLE game.sessions DROP COLUMN name')
+    migration = (Path(__file__).parents[1] / 'postgresql/migrations/006_game_session_names.sql').read_text()
+    c.execute(migration)
+    c.execute(migration)
+    c.execute('SELECT name FROM game.sessions WHERE id=%s', (sid,))
+    assert c.fetchone()[0] == 'Сессия ' + sid

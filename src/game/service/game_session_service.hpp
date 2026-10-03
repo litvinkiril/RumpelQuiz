@@ -11,6 +11,7 @@
 #include <userver/storages/postgres/cluster.hpp>
 
 #include "game/game_models.hpp"
+#include "game/service/game_events.hpp"
 #include "game/repository/game_play_repository.hpp"
 #include "game/repository/game_session_repository.hpp"
 #include "s3client/s3client_base.hpp"
@@ -26,7 +27,8 @@ class GameSessionService final : public userver::components::ComponentBase {
 
   GameSessionResult Create(const boost::uuids::uuid& user_id,
                            const boost::uuids::uuid& quiz_id,
-                           const boost::uuids::uuid& session_id) const;
+                           const boost::uuids::uuid& session_id,
+                           const std::string& name) const;
 
   NextGameQuestionServiceResult NextQuestion(
       const boost::uuids::uuid& user_id, const boost::uuids::uuid& session_id,
@@ -40,6 +42,7 @@ class GameSessionService final : public userver::components::ComponentBase {
   GameSessionRepository repository_;
   GamePlayRepository play_repository_;
   const S3ClientBase& s3_;
+  GameEvents& events_;
 
  public:
   userver::formats::json::Value Read(const boost::uuids::uuid& user,

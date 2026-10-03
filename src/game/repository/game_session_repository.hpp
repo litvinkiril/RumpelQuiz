@@ -15,7 +15,8 @@ class GameSessionRepository {
         userver::storages::postgres::Transaction& tx,
         const boost::uuids::uuid& user_id,
         const boost::uuids::uuid& quiz_id,
-        const boost::uuids::uuid& session_id
+        const boost::uuids::uuid& session_id,
+        const std::string& name
     ) const;
 
     NextGameQuestionResult NextQuestion(

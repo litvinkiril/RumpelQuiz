@@ -28,8 +28,32 @@ export function gameSeconds(state, now=Date.now()) {
   const q=state.game?.current_question;
   return q && q.accepting_answers ? Math.max(0,Math.ceil((q.deadline_at_ms-now-(state.gameOffset || 0))/1000)) : 0;
 }
-export function createGameController({state, authorized, run, emit, fail, storage, now=Date.now, makeId=makeGameId, origin='http://localhost:8080', joinCode=''}) {
+export async function consumeGameStream(response, onEvent) {
+  if(!response.body?.getReader) throw new Error('Streaming response unavailable');
+  const reader=response.body.getReader(), decoder=new TextDecoder();
+  let buffer='';
+  try {
+    while(true) {
+      const {value,done}=await reader.read();
+      if(done) break;
+      buffer+=decoder.decode(value,{stream:true});
+      let end;
+      while((end=buffer.indexOf('\n\n'))!==-1) {
+        const block=buffer.slice(0,end);buffer=buffer.slice(end+2);
+        let type='message';const data=[];
+        for(const line of block.split('\n')) {
+          if(line.startsWith('event:')) type=line.slice(6).trimStart();
+          if(line.startsWith('data:')) data.push(line.slice(5).trimStart());
+        }
+        if(data.length) await onEvent(type,JSON.parse(data.join('\n')));
+      }
+      if(buffer.length>1048576) throw new Error('Game event too large');
+    }
+  } finally { reader.releaseLock(); }
+}
+export function createGameController({state, authorized, run, emit, fail, storage, streamFetch=globalThis.fetch, now=Date.now, makeId=makeGameId, origin='http://localhost:8080', joinCode=''}) {
   let polling=false;
+  let streamAbort=null,streamSession='',streamTask=null;
   let saved={};
   try { const value=JSON.parse(storage?.getItem(KEY) || '{}'); if(value && typeof value==='object') saved=value; } catch {}
   Object.assign(state,{game:null,gameSelected:[],gameOffset:0,gameOrigin:origin,gameJoinCode:/^\d{6}$/.test(joinCode)?joinCode:''});
@@ -54,7 +78,60 @@ export function createGameController({state, authorized, run, emit, fail, storag
     return value;
   };
   const controller = {
-    resetGameView() { state.game=null; state.gameSelected=[]; },
+    resetGameView() { state.game=null; state.gameSelected=[]; controller.syncGameEvents(); },
+    syncGameEvents() {
+      const id=state.screen==='game' && state.token && state.game && !finished(state.game)?state.game.session.id:'';
+      if(id===streamSession && streamTask) return;
+      streamAbort?.abort();streamAbort=null;streamTask=null;streamSession=id;
+      if(!id) return;
+      const abort=new AbortController();streamAbort=abort;
+      const active=()=>!abort.signal.aborted && state.screen==='game' && state.token && state.game?.session.id===id && !finished(state.game);
+      const task=(async()=>{
+        while(active()) {
+          try {
+            const response=await streamFetch('/v1/game/sessions/'+encodeURIComponent(id)+'/events',{
+              headers:{Authorization:'Bearer '+state.token,Accept:'text/event-stream'},signal:abort.signal,
+            });
+            if(response.status===401) {
+              try { await authorized('me'); }
+              catch {
+                state.token='';state.refreshToken='';state.sessionId='';state.userId='';
+                state.game=null;state.screen='login';
+                state.error='Сессия входа истекла. Войдите снова.';emit();abort.abort();break;
+              }
+              continue;
+            }
+            if(response.status===403) {
+              state.error='Нет доступа к этой игровой сессии.';emit();abort.abort();break;
+            }
+            if(!response.ok) throw new Error('Game event stream failed');
+            await consumeGameStream(response,async(type,value)=>{
+              while(active() && state.busy) await new Promise(resolve=>setTimeout(resolve,50));
+              if(!active()) return;
+              if(type==='snapshot') {
+                if(!value?.success || value.session?.id!==id || !Number.isFinite(value.server_time_ms)) return;
+                if(state.game?.server_time_ms>value.server_time_ms) return;
+                accept(value);state.error='';emit();
+              } else if(type==='question') {
+                const q=value?.current_question,old=state.game?.current_question;
+                if(!q || !Number.isInteger(q.position) || !Number.isFinite(value.server_time_ms)) return;
+                if(old && q.position<=old.position) return;
+                accept({...state.game,server_time_ms:value.server_time_ms,
+                  session:{...state.game.session,status:'running'},current_question:q});
+                state.error='';emit();
+              } else if(type==='resync') {
+                await controller.pollGame();
+              }
+            });
+          } catch(error) {
+            if(!active()) break;
+          }
+          if(active()) await new Promise(resolve=>setTimeout(resolve,1000));
+        }
+      })();
+      streamTask=task;
+      void task.finally(()=>{if(streamAbort===abort) {streamAbort=null;streamTask=null;streamSession='';}});
+    },
     async resumeGame() {
       if(!state.token || state.busy) return false;
       if(state.gameJoinCode && (saved.owner!==state.userId || saved.code!==state.gameJoinCode)) {
@@ -68,12 +145,14 @@ export function createGameController({state, authorized, run, emit, fail, storag
     },
     openGameJoin() { if(state.busy || !state.token) return; state.screen='game-join'; state.error=''; state.success=''; emit(); },
     openLastGame() { return controller.resumeGame(); },
-    createGame() {
+    createGame(name) {
       if(state.busy || !state.token || state.quizDraft?.status!=='ready') return Promise.resolve(false);
+      name=typeof name==='string'?name.replace(/^[\p{White_Space}\uFEFF]+|[\p{White_Space}\uFEFF]+$/gu,''):'';
+      if(!name || [...name].length>200 || name.includes('\0')) return fail('Введите название сессии от 1 до 200 символов.');
       const quiz=state.quizDraft;
       return run(async()=>{
-        if(saved.owner!==state.userId || saved.pending?.quiz_id!==quiz.id) {
-          remember({sessionId:null,code:null,pending:{quiz_id:quiz.id,session_id:makeId()}});
+        if(saved.owner!==state.userId || saved.pending?.quiz_id!==quiz.id || saved.pending?.name!==name) {
+          remember({sessionId:null,code:null,pending:{quiz_id:quiz.id,session_id:makeId(),name}});
         }
         const result=await authorized('game/sessions',saved.pending);
         if(!result?.success || !UUID.test(result.session?.id || '')) throw new Error('Invalid game creation');
@@ -100,7 +179,7 @@ export function createGameController({state, authorized, run, emit, fail, storag
       return run(()=>load(id),accept);
     },
     async pollGame() {
-      if(polling || state.screen!=='game' || state.busy || state.error || !state.game || finished(state.game)) return false;
+      if(polling || state.screen!=='game' || state.busy || !state.game) return false;
       polling=true;
       try {
         return await run(()=>load(state.game.session.id),value=>{
@@ -147,11 +226,18 @@ export function createGameController({state, authorized, run, emit, fail, storag
       return run(async()=>{
         try {
           await authorized('game/sessions/'+game.session.id+'/answers',{question_id:q.id,answer_ids:choices});
+          return {saved:true};
         } catch(error) {
           if(!['answer_already_saved','question_closed','session_closed'].includes(error.code)) throw error;
+          return {state:await load(game.session.id)};
         }
-        return load(game.session.id);
-      },accept);
+      },result=>{
+        if(result.saved && state.game?.current_question?.id===q.id) {
+          state.game={...state.game,current_question:{...state.game.current_question,
+            submitted:true,selected_ids:choices}};
+          state.gameSelected=choices;
+        } else if(result.state) accept(result.state);
+      });
     },
     setGameOrigin(value) {
       try {

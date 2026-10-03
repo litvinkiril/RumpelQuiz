@@ -2,6 +2,7 @@
 
 #include <boost/uuid/uuid.hpp>
 #include <chrono>
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -18,6 +19,7 @@ class JwtError final : public std::runtime_error {
 struct AccessTokenClaims {
   boost::uuids::uuid user_id;
   boost::uuids::uuid session_id;
+  std::int64_t expires_at;
 };
 
 class JwtService {

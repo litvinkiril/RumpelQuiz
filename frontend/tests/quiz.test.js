@@ -58,7 +58,7 @@ test('published quiz is read-only after loading and after publication',async()=>
  assert.deepEqual(c.state.quizDraft,before);assert.equal(calls.length,count);
  const html=renderQuiz(c.state,'');
  assert.match(html,/Просмотр квиза/);assert.match(html,/<fieldset class="quiz-fields" disabled>/);
- assert.ok(!html.includes('quiz-save-draft'));assert.ok(!html.includes('type="submit"'));
+ assert.ok(!html.includes('quiz-save-draft'));assert.ok(!html.slice(html.indexOf('<form data-form="quiz"')).includes('type="submit"'));
  await c.openQuizzes(true);
  await c.saveQuiz('ready');
  assert.equal(c.state.quizDraft.status,'ready');

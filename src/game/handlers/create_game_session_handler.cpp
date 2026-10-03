@@ -29,7 +29,7 @@ CreateGameSessionHandler::HandleRequestJsonThrow(
     const auto quiz_id = GameHttp::ReadUuid(body, "quiz_id");
     const auto session_id = GameHttp::ReadUuid(body, "session_id");
 
-    if (!quiz_id || !session_id) {
+    if (!quiz_id || !session_id || !body.HasMember("name") || !body["name"].IsString()) {
         return GameHttp::Error(
             request,
             GameHttp::Status::kBadRequest,
@@ -40,7 +40,8 @@ CreateGameSessionHandler::HandleRequestJsonThrow(
     const auto result = service_.Create(
         user_id,
         *quiz_id,
-        *session_id
+        *session_id,
+        body["name"].As<std::string>()
     );
 
     if (const auto* error =

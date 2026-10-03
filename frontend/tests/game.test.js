@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createController, createApi, ApiError} from '../app.js';
-import {gameSeconds, joinLink, qrSvg, renderGame} from '../game.js';
+import {consumeGameStream, gameSeconds, joinLink, qrSvg, renderGame} from '../game.js';
 import {newQuiz, renderQuiz} from '../quiz.js';
 
 const sid='11111111-1111-4111-8111-111111111111',qid='22222222-2222-4222-8222-222222222222',quiz='33333333-3333-4333-8333-333333333333';
@@ -25,6 +25,50 @@ test('game API paths use v1/game and bearer auth',async()=>{
   assert.equal(request.url,'/v1/game/sessions/'+sid);
   assert.equal(request.options.headers.Authorization,'Bearer token');
 });
+test('SSE parser handles split frames and skips heartbeat comments',async()=>{
+  const frames=[];
+  const body=new ReadableStream({start(controller){
+    controller.enqueue(new TextEncoder().encode(': ping\n\nevent: question\nda'));
+    controller.enqueue(new TextEncoder().encode('ta: {"id":"q"}\n\n'));
+    controller.close();
+  }});
+  await consumeGameStream({body},(type,data)=>frames.push([type,data]));
+  assert.deepEqual(frames,[['question',{id:'q'}]]);
+});
+test('SSE sends a new question without a state GET',async()=>{
+  const calls=[],requested=[];
+  const payload='event: snapshot\ndata: '+JSON.stringify(snapshot(false))+'\n\n'
+    +'event: question\ndata: '+JSON.stringify({server_time_ms:11000,current_question:question()})+'\n\n';
+  const streamFetch=async(url,options)=>{
+    requested.push({url,authorization:options.headers.Authorization});
+    return {ok:true,status:200,body:new ReadableStream({start(stream){stream.enqueue(new TextEncoder().encode(payload));stream.close();}})};
+  };
+  const {c}=setup(async(...args)=>{calls.push(args);return snapshot(false);},{streamFetch});
+  c.state.game=snapshot(false);c.state.screen='game';c.syncGameEvents();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.state.game.current_question.id,qid);
+  assert.deepEqual(calls,[]);
+  assert.deepEqual(requested[0],{url:'/v1/game/sessions/'+sid+'/events',authorization:'Bearer token'});
+  c.navigate('account');c.syncGameEvents();
+});
+test('successful answer POST updates the student locally without a state GET',async()=>{
+  const calls=[];
+  const {c}=setup(async(path,body)=>{calls.push({path,body});return {success:true};});
+  c.state.game=snapshot(false,question(),'running');c.state.screen='game';c.state.gameOffset=9000;
+  c.chooseGameAnswer(a);
+  assert.equal(await c.submitGameAnswer(),true);
+  assert.equal(calls.length,1);
+  assert.equal(calls[0].path,'game/sessions/'+sid+'/answers');
+  assert.equal(c.state.game.current_question.submitted,true);
+});
+test('SSE authorization failure clears the expired login',async()=>{
+  const {c}=setup(async()=>{throw new ApiError('expired',401);},
+    {streamFetch:async()=>({status:401,ok:false})});
+  c.state.game=snapshot(false);c.state.screen='game';c.syncGameEvents();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.state.screen,'login');
+  assert.equal(c.state.token,'');
+});
 test('create uses stable UUID after a lost response or failed state load',async()=>{
   const calls=[];let phase=0;
   const {c}=setup(async(path,body)=>{
@@ -36,15 +80,15 @@ test('create uses stable UUID after a lost response or failed state load',async(
     if(phase===2) throw new ApiError('state offline');
     return snapshot();
   });
-  assert.equal(await c.createGame(),false);
-  assert.equal(await c.createGame(),false);
-  assert.equal(await c.createGame(),true);
+  assert.equal(await c.createGame('Практика 3'),false);
+  assert.equal(await c.createGame('Практика 3'),false);
+  assert.equal(await c.createGame('Практика 3'),true);
   assert.deepEqual(calls.filter(x=>x.body).map(x=>x.body.session_id),[sid,sid,sid]);
   assert.equal(c.state.screen,'game');
 });
 test('draft cannot create a game and published quiz shows launch outside disabled form',async()=>{
   let calls=0;const {c}=setup(async()=>{calls++;});
-  c.state.quizDraft.status='draft';assert.equal(await c.createGame(),false);assert.equal(calls,0);
+  c.state.quizDraft.status='draft';assert.equal(await c.createGame('Практика 3'),false);assert.equal(calls,0);
   const draft=newQuiz('uni');draft.id=quiz;draft.status='ready';
   const html=renderQuiz({screen:'quiz',quizDraft:draft},'');
   assert.ok(html.indexOf('game-create')<html.indexOf('<fieldset'));
@@ -181,4 +225,28 @@ test('game view escapes names and hides host controls from students',()=>{
   const html=renderGame({screen:'game',game,gameSelected:[],gameOffset:0},'');
   assert.ok(!html.includes('<script>'));assert.ok(!html.includes('data-action="game-next"'));
   assert.ok(!html.includes('data-action="game-close"'));assert.match(html,/game-submit/);
+});
+
+
+test('session name is required and validated before a request',async()=>{
+  let calls=0;const {c}=setup(async()=>{calls++;});
+  for(const name of [undefined,null,123,'','   ','\u00a0\u2003','a'.repeat(201),'a\0b']) {
+    assert.equal(await c.createGame(name),false);
+  }
+  assert.equal(calls,0);
+});
+test('creation trims name, preserves it on retries and replaces ID for a changed name',async()=>{
+  const calls=[];let id=0;
+  const {c}=setup(async(path,body)=>{calls.push(structuredClone(body));throw new ApiError('offline');},{makeGameId:()=>String(++id)});
+  await c.createGame('  Практика 3  ');
+  await c.createGame('Практика 3');
+  await c.createGame('Практика 4');
+  assert.deepEqual(calls.map(x=>x.name),['Практика 3','Практика 3','Практика 4']);
+  assert.deepEqual(calls.map(x=>x.session_id),['1','1','2']);
+});
+test('200 Unicode characters are allowed',async()=>{
+  let sent;
+  const {c}=setup(async(path,body)=>{sent=body;throw new ApiError('offline');});
+  await c.createGame('😀'.repeat(200));
+  assert.equal(sent.name,'😀'.repeat(200));
 });

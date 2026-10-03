@@ -79,7 +79,7 @@ export function validatePassword(password, confirmation) {
   return '';
 }
 const KEY = 'rumpelquiz.auth';
-export function createController({api = createApi(), storage, onChange = () => {}, now = Date.now, makeGameId, origin = globalThis.location?.origin || 'http://localhost:8080', joinCode = ''} = {}) {
+export function createController({api = createApi(), streamFetch = globalThis.fetch, storage, onChange = () => {}, now = Date.now, makeGameId, origin = globalThis.location?.origin || 'http://localhost:8080', joinCode = ''} = {}) {
   let sequence = 0;
   const state = {screen: 'login', email: '', token: '', refreshToken: '', sessionId: '', userId: '', verificationId: '',
     purpose: 'register', resetToken: '', resendAt: 0, busy: false, error: '', success: '', profile: null,
@@ -194,7 +194,7 @@ export function createController({api = createApi(), storage, onChange = () => {
     clearEducation();
     state.verificationId = ''; state.resetToken = ''; state.resendAt = 0;
   };
-  const game = createGameController({state, authorized, run, emit, fail, storage, now, makeId:makeGameId, origin, joinCode});
+  const game = createGameController({state, authorized, run, emit, fail, storage, streamFetch, now, makeId:makeGameId, origin, joinCode});
   return {
     ...game,
     state,
@@ -610,6 +610,8 @@ export function mountApp(root, options = {}) {
       const focus = [...root.querySelectorAll('input')].find(el => el.name === focusName);
       focus?.focus();
     } else if (lastScreen === 'quiz' && state.screen === 'quiz') {
+      const gameName = root.querySelector('[name="game-name"]');
+      if (gameName && values.has('game-name')) gameName.value = values.get('game-name');
       if (focusId) root.ownerDocument.getElementById(focusId)?.focus({preventScroll:true});
     } else {
       root.querySelector('h2')?.focus();
@@ -631,6 +633,7 @@ export function mountApp(root, options = {}) {
     }
     lastContactId = state.selectedAdmin?.membership_id || state.selectedAdmin?.user_id || null;
     tick();
+    controller?.syncGameEvents();
   };
   controller = createController({...options, joinCode:new URL(root.ownerDocument.defaultView.location.href).searchParams.get('join') || '', onChange: render});
   const tick = () => {
@@ -647,9 +650,6 @@ export function mountApp(root, options = {}) {
     button.textContent = seconds > 0 ? `Новый код через ${seconds} с` : 'Получить новый код';
   };
   const interval = setInterval(tick, 1000);
-  const gameInterval = setInterval(()=>{
-    if(!root.ownerDocument.hidden && !root.querySelector('.game-network[open]')) void controller.pollGame();
-  }, 2500);
   const canLeave = () => !controller.state.quizDirty || controller.state.screen!=='quiz' || root.ownerDocument.defaultView.confirm('Есть несохранённые изменения. Выйти из редактора?');
   const beforeUnload = event => { if(controller.state.screen==='quiz' && controller.state.quizDirty) {event.preventDefault();event.returnValue='';} };
   root.ownerDocument.defaultView.addEventListener('beforeunload',beforeUnload);
@@ -679,6 +679,7 @@ export function mountApp(root, options = {}) {
     event.preventDefault();
     if (controller.state.busy) return;
     const form = event.target;
+    if(form.dataset.form==='game-create') {if(form.reportValidity()) void controller.createGame(new FormData(form).get('game-name'));return;}
     if(form.dataset.form==='game-join') {if(form.reportValidity()) void controller.joinGame(new FormData(form).get('game-code'));return;}
     if(form.dataset.form==='game-origin') {if(form.reportValidity()) controller.setGameOrigin(new FormData(form).get('game-origin'));return;}
     if(form.dataset.form==='quiz') {void controller.saveQuiz('ready');return;}
@@ -698,7 +699,6 @@ export function mountApp(root, options = {}) {
     if (button.dataset.nav) { if(canLeave()) controller.navigate(button.dataset.nav); return; }
     if (controller.state.busy) return;
     const action=button.dataset.action,qi=Number(button.dataset.q),ai=button.dataset.a===undefined?undefined:Number(button.dataset.a);
-    if(action==='game-create') void controller.createGame();
     if(action==='game-next') void controller.nextGameQuestion();
     if(action==='game-close') void controller.closeGame();
     if(action==='game-join') controller.openGameJoin();
@@ -732,7 +732,7 @@ export function mountApp(root, options = {}) {
     }
   });
   void controller.start();
-  return {controller, canLeave, destroy: () => {clearInterval(interval);clearInterval(gameInterval);root.ownerDocument.defaultView.removeEventListener('beforeunload',beforeUnload);}};
+  return {controller, canLeave, destroy: () => {clearInterval(interval);controller.resetGameView();root.ownerDocument.defaultView.removeEventListener('beforeunload',beforeUnload);}};
 }
 if (typeof document !== 'undefined') {
   const root = document.getElementById('app');

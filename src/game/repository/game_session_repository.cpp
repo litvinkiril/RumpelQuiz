@@ -75,6 +75,7 @@ std::optional<GameSession> GameSessionRepository::LockOwnedSession(
             s.host_user_id,
             s.university_id,
             s.join_code,
+            s.name,
             s.status,
             s.created_at,
             s.started_at,
@@ -104,7 +105,8 @@ GameSessionResult GameSessionRepository::Create(
     pg::Transaction& tx,
     const boost::uuids::uuid& user_id,
     const boost::uuids::uuid& quiz_id,
-    const boost::uuids::uuid& session_id
+    const boost::uuids::uuid& session_id,
+    const std::string& name
 ) const {
     if (user_id.is_nil() || quiz_id.is_nil() || session_id.is_nil()) {
         return GameSessionFailure{
@@ -159,6 +161,7 @@ GameSessionResult GameSessionRepository::Create(
             host_user_id,
             university_id,
             join_code,
+            name,
             status,
             created_at,
             started_at,
@@ -172,7 +175,7 @@ GameSessionResult GameSessionRepository::Create(
             existing.AsSingleRow<GameSession>(pg::kRowTag);
 
         if (session.host_user_id != user_id ||
-            session.quiz_id != quiz_id) {
+            session.quiz_id != quiz_id || session.name != name) {
             return GameSessionFailure{
                 GameSessionError::kRequestIdConflict
             };
@@ -194,9 +197,10 @@ GameSessionResult GameSessionRepository::Create(
                 quiz_id,
                 host_user_id,
                 university_id,
-                join_code
+                join_code,
+                name
             )
-            VALUES ($1, $2, $3, $4, $5)
+            VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (join_code)
                 WHERE status IN ('waiting', 'running')
             DO NOTHING
@@ -206,6 +210,7 @@ GameSessionResult GameSessionRepository::Create(
                 host_user_id,
                 university_id,
                 join_code,
+                name,
                 status,
                 created_at,
                 started_at,
@@ -215,7 +220,8 @@ GameSessionResult GameSessionRepository::Create(
             quiz_id,
             user_id,
             quiz.university_id,
-            GenerateJoinCode()
+            GenerateJoinCode(),
+            name
         );
 
         if (!result.IsEmpty()) {
@@ -401,6 +407,7 @@ GameSessionResult GameSessionRepository::Close(
             host_user_id,
             university_id,
             join_code,
+            name,
             status,
             created_at,
             started_at,

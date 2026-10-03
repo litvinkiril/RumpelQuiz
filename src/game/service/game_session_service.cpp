@@ -1,7 +1,10 @@
 #include "game_session_service.hpp"
 
 #include <userver/formats/json.hpp>
+#include <userver/formats/json/serialize.hpp>
 #include <variant>
+#include <unicode/uchar.h>
+#include <unicode/utf8.h>
 #include "s3client/s3client_component.hpp"
 
 #include <userver/components/component_context.hpp>
@@ -17,18 +20,40 @@ GameSessionService::GameSessionService(
     : ComponentBase(config, context),
       pg_(context.FindComponent<userver::components::Postgres>("postgres-db-1")
               .GetCluster()),
-      s3_(context.FindComponent<S3ClientComponent>().GetClient()) {}
+      s3_(context.FindComponent<S3ClientComponent>().GetClient()),
+      events_(context.FindComponent<GameEvents>()) {}
 
 GameSessionResult GameSessionService::Create(
     const boost::uuids::uuid& user_id, const boost::uuids::uuid& quiz_id,
-    const boost::uuids::uuid& session_id) const {
+    const boost::uuids::uuid& session_id, const std::string& name) const {
   if (user_id.is_nil() || quiz_id.is_nil() || session_id.is_nil()) {
     return GameSessionFailure{GameSessionError::kInvalidRequest};
   }
 
+  // Validate UTF-8 and trim Unicode whitespace before persisting the name.
+  if (name.size() > 4096) return GameSessionFailure{GameSessionError::kInvalidRequest};
+  int32_t offset = 0, first = -1, last = 0;
+  int characters = 0, trimmed_characters = 0;
+  while (offset < static_cast<int32_t>(name.size())) {
+    const auto start = offset;
+    UChar32 c;
+    U8_NEXT(name.data(), offset, static_cast<int32_t>(name.size()), c);
+    if (c < 0 || c == 0) return GameSessionFailure{GameSessionError::kInvalidRequest};
+    if (!u_isUWhiteSpace(c) && c != 0xFEFF) {
+      if (first < 0) first = start;
+      last = offset;
+      trimmed_characters = ++characters;
+    } else if (first >= 0) {
+      ++characters;
+    }
+  }
+  if (first < 0 || trimmed_characters > 200)
+    return GameSessionFailure{GameSessionError::kInvalidRequest};
+  const auto normalized_name = name.substr(first, last - first);
+
   auto tx = pg_->Begin(pg::ClusterHostType::kMaster, pg::TransactionOptions{});
 
-  auto result = repository_.Create(tx, user_id, quiz_id, session_id);
+  auto result = repository_.Create(tx, user_id, quiz_id, session_id, normalized_name);
 
   if (std::holds_alternative<GameSessionFailure>(result)) {
     // Транзакция откатится при уничтожении tx.
@@ -64,6 +89,17 @@ NextGameQuestionServiceResult GameSessionService::NextQuestion(
                                   server_time};
 
   tx.Commit();
+  try {
+    const auto state = Read(user_id, session_id);
+    userver::formats::json::ValueBuilder event;
+    event["current_question"] = state["current_question"];
+    event["server_time_ms"] = state["server_time_ms"];
+    events_.Publish(session_id, GameEvents::Audience::kStudents, "question",
+                    userver::formats::json::ToString(event.ExtractValue()));
+  } catch (const std::exception&) {
+    // The write succeeded; clients can recover from the authoritative state.
+    events_.Publish(session_id, GameEvents::Audience::kAll, "resync", "{}");
+  }
   return success;
 }
 
@@ -83,6 +119,7 @@ GameSessionResult GameSessionService::Close(
   }
 
   tx.Commit();
+  events_.Publish(session_id, GameEvents::Audience::kAll, "resync", "{}");
   return result;
 }
 
@@ -111,6 +148,7 @@ boost::uuids::uuid GameSessionService::Join(const boost::uuids::uuid& user,
   auto tx = pg_->Begin(pg::ClusterHostType::kMaster, pg::TransactionOptions{});
   auto id = play_repository_.Join(tx, user, code);
   tx.Commit();
+  events_.Publish(id, GameEvents::Audience::kHost, "resync", "{}");
   return id;
 }
 void GameSessionService::Submit(
@@ -120,5 +158,6 @@ void GameSessionService::Submit(
   auto tx = pg_->Begin(pg::ClusterHostType::kMaster, pg::TransactionOptions{});
   play_repository_.Submit(tx, user, session, question, choices);
   tx.Commit();
+  events_.Publish(session, GameEvents::Audience::kHost, "resync", "{}");
 }
 }  // namespace RumpelQuiz

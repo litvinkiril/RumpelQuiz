@@ -41,6 +41,7 @@ class JwtAuthChecker final
       const auto claims = jwt_service_.VerifyAccessToken(token);
       context.SetData(std::string{kAuthenticatedUserId}, claims.user_id);
       context.SetData(std::string{kAuthenticatedSessionId}, claims.session_id);
+      context.SetData(std::string{kAuthenticatedTokenExpiry}, claims.expires_at);
       return {};
     } catch (const JwtError&) {
       return {AuthCheckResult::Status::kTokenNotFound,

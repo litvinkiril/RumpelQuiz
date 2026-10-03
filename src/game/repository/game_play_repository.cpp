@@ -55,7 +55,7 @@ userver::formats::json::Value GamePlayRepository::Read(
   auto result = tx.Execute(R"(
 SELECT jsonb_build_object(
  'success',true,'server_time_ms',floor(extract(epoch FROM clock_timestamp())*1000)::bigint,
- 'session',jsonb_build_object('id',s.id,'quiz_id',s.quiz_id,'name',k.name,
+ 'session',jsonb_build_object('id',s.id,'quiz_id',s.quiz_id,'name',s.name,'quiz_name',k.name,
    'join_code',s.join_code,'status',s.status,'is_host',s.host_user_id=$2,
    'question_count',(SELECT count(*) FROM quiz.questions WHERE quiz_id=s.quiz_id),
    'participants_count',(SELECT count(*) FROM game.participants WHERE session_id=s.id)),

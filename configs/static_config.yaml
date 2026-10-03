@@ -183,6 +183,7 @@ components_manager:
         education-service: {}
 
         game-session-service: {}
+        game-events: {}
         handler-frontend-game-js:
             path: /game.js
             method: GET
@@ -195,6 +196,13 @@ components_manager:
             path: /v1/game/sessions/{session_id}
             method: GET
             task_processor: main-task-processor
+            auth:
+                types: [jwt]
+        handler-game-events:
+            path: /v1/game/sessions/{session_id}/events
+            method: GET
+            task_processor: main-task-processor
+            response-body-stream: true
             auth:
                 types: [jwt]
         handler-game-join:

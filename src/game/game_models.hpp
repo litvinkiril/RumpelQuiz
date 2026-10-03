@@ -16,6 +16,7 @@ struct GameSession {
     boost::uuids::uuid university_id;
 
     std::string join_code;
+    std::string name;
 
     // waiting / running / finished / cancelled
     std::string status;

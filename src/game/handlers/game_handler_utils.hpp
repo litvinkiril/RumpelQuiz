@@ -165,6 +165,7 @@ inline Json SessionResponse(const GameSession& session) {
     body["session"]["university_id"] =
         boost::uuids::to_string(session.university_id);
 
+    body["session"]["name"] = session.name;
     body["session"]["join_code"] = session.join_code;
     body["session"]["status"] = session.status;
 
