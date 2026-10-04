@@ -1,4 +1,5 @@
 #include "game_play_repository.hpp"
+#include "quiz/info/repository/quiz_info_repository.hpp"
 #include <algorithm>
 #include <userver/formats/json.hpp>
 #include <userver/storages/postgres/io/array_types.hpp>
@@ -78,14 +79,7 @@ SELECT jsonb_build_object(
    'selected_ids',COALESCE((SELECT jsonb_agg(c.answer_id ORDER BY c.answer_id) FROM game.submission_choices c
       JOIN game.submissions sub ON sub.id=c.submission_id WHERE sub.session_id=s.id AND sub.user_id=$2 AND sub.question_id=cq.id),'[]'::jsonb)
  ) END,
- 'results',CASE WHEN s.status='finished' THEN COALESCE((
-   SELECT jsonb_agg(jsonb_build_object('user_id',p.user_id,
-     'name',COALESCE(NULLIF(trim(concat_ws(' ',pr.last_name,pr.first_name)),''),'Участник'),
-     'answered_count',(SELECT count(*) FROM game.submissions sub WHERE sub.session_id=s.id AND sub.user_id=p.user_id)
-   ) ORDER BY p.joined_at,p.user_id)
-   FROM game.participants p LEFT JOIN users.profiles pr ON pr.user_id=p.user_id
-   WHERE p.session_id=s.id AND (s.host_user_id=$2 OR p.user_id=$2)
- ),'[]'::jsonb) ELSE '[]'::jsonb END
+ 'results','[]'::jsonb
 )::text
 FROM game.sessions s JOIN quiz.quizzes k ON k.id=s.quiz_id
 LEFT JOIN LATERAL (
@@ -95,7 +89,14 @@ LEFT JOIN LATERAL (
 ) cq ON true LEFT JOIN media.images mi ON mi.id=cq.image_id WHERE s.id=$1
   )",
                            session, user);
-  return userver::formats::json::FromString(result.AsSingleRow<std::string>());
+  auto state = userver::formats::json::FromString(result.AsSingleRow<std::string>());
+  const auto status = state["session"]["status"].As<std::string>();
+  if (status == "finished" || status == "cancelled") {
+    userver::formats::json::ValueBuilder out(state);
+    out["results"] = QuizInfoRepository{}.GetSessionResults(tx, session);
+    return out.ExtractValue();
+  }
+  return state;
 }
 void GamePlayRepository::Submit(
     pg::Transaction& tx, const boost::uuids::uuid& user,

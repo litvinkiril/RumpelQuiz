@@ -56,10 +56,18 @@ void GameEventsHandler::HandleStreamRequest(
   stream.SetHeader(std::string_view{"Cache-Control"}, "no-store");
   stream.SetHeader(std::string_view{"X-Accel-Buffering"}, "no");
   stream.SetEndOfHeaders();
-  stream.PushBodyChunk(
-      "event: snapshot\ndata: " + userver::formats::json::ToString(state) +
-          "\n\n",
-      userver::engine::Deadline::FromDuration(std::chrono::seconds{5}));
+  const auto ended = [](const auto& value) {
+    const auto status = value["session"]["status"].template As<std::string>();
+    return status == "finished" || status == "cancelled";
+  };
+  const auto send_state = [&](bool terminal) {
+    stream.PushBodyChunk(
+        std::string{"event: "} + (terminal ? "results" : "snapshot") +
+            "\ndata: " + userver::formats::json::ToString(state) + "\n\n",
+        userver::engine::Deadline::FromDuration(std::chrono::seconds{5}));
+  };
+  send_state(ended(state));
+  if (ended(state)) return;
 
   // Refresh the bearer token at reconnect and bound the lifetime of a stream.
   const auto token_expiry = std::chrono::system_clock::time_point{
@@ -70,6 +78,16 @@ void GameEventsHandler::HandleStreamRequest(
   while (!userver::engine::current_task::ShouldCancel() &&
          std::chrono::system_clock::now() < stop_at) {
     if (auto message = GameEvents::Pop(subscriber); !message.empty()) {
+      // Resolve final results per connection after the closing transaction
+      // commits. Also handle a terminal notification coalesced into resync.
+      if (message.starts_with("event: results\n") ||
+          message.starts_with("event: resync\n")) {
+        state = service_.Read(user, *session);
+        if (ended(state)) {
+          send_state(true);
+          return;  // No heartbeat or queued event may follow the results.
+        }
+      }
       stream.PushBodyChunk(
           std::move(message),
           userver::engine::Deadline::FromDuration(std::chrono::seconds{5}));

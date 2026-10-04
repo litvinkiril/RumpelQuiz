@@ -119,7 +119,7 @@ GameSessionResult GameSessionService::Close(
   }
 
   tx.Commit();
-  events_.Publish(session_id, GameEvents::Audience::kAll, "resync", "{}");
+  events_.Publish(session_id, GameEvents::Audience::kAll, "results", "{}");
   return result;
 }
 

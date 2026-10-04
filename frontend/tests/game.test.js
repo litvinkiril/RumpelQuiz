@@ -51,6 +51,27 @@ test('SSE sends a new question without a state GET',async()=>{
   assert.deepEqual(requested[0],{url:'/v1/game/sessions/'+sid+'/events',authorization:'Bearer token'});
   c.navigate('account');c.syncGameEvents();
 });
+
+test('final SSE results stop the stream without a GET, reconnection or later events',async()=>{
+  for(const status of ['finished','cancelled']) {
+    let requests=0,cancelled=false;
+    const final=snapshot(false,null,status);
+    final.results=[{name:'Первый',answered_count:2,correct_count:1,score:1},{name:'Второй',answered_count:0,correct_count:0,score:0}];
+    const streamFetch=async()=>{
+      requests++;
+      return {ok:true,status:200,body:new ReadableStream({start(stream){
+        stream.enqueue(new TextEncoder().encode('event: results\ndata: '+JSON.stringify(final)+'\n\nevent: question\ndata: '+JSON.stringify({server_time_ms:12000,current_question:question()})+'\n\n'));
+      },cancel(){cancelled=true;}})};
+    };
+    const {c}=setup(async()=>{assert.fail('Results must arrive over SSE');},{streamFetch});
+    c.state.screen='game';c.state.game=snapshot(false);
+    c.syncGameEvents();await new Promise(resolve=>setImmediate(resolve));
+    c.syncGameEvents();await new Promise(resolve=>setImmediate(resolve));
+    assert.deepEqual(c.state.game,final);assert.equal(requests,1);assert.equal(cancelled,true);
+    assert.match(renderGame(c.state,''),/Второй/);
+    assert.match(renderGame(c.state,''),/Баллы/);
+  }
+});
 test('successful answer POST updates the student locally without a state GET',async()=>{
   const calls=[];
   const {c}=setup(async(path,body)=>{calls.push({path,body});return {success:true};});
@@ -146,6 +167,82 @@ test('background polling leaves controls enabled and does not redraw unchanged q
   release({...snapshot(false,question(),'running'),server_time_ms:11000});
   assert.equal(await pending,true);assert.equal(renders,before);
   assert.deepEqual(c.state.gameSelected,[a]);assert.equal(c.state.gameOffset,10000);
+});
+
+test('background progress preserves images and selections despite renewed signed URLs',async()=>{
+  const changes=[];
+  const original=snapshot(true,{...question(),image_url:'https://images.test/question?old',
+    answers:[{id:a,text:'A',image_url:'https://images.test/answer?old'},{id:b,text:'B'}]},'running');
+  const next=structuredClone(original);
+  next.server_time_ms=11000;
+  next.current_question.image_url='https://images.test/question?new';
+  next.current_question.answers[0].image_url='https://images.test/answer?new';
+  next.current_question.answered_count=1;
+  next.session.participants_count=2;
+  next.participants=[{id:'student',name:'<Студент>'}];
+  const {c}=setup(async()=>next,{onChange:(state,change)=>changes.push(change)});
+  c.state.game=original;c.state.screen='game';c.state.gameSelected=[a];
+  assert.equal(await c.pollGame(),true);
+  assert.deepEqual(changes,['game-progress']);
+  assert.equal(c.state.game.current_question.answered_count,1);
+  assert.equal(c.state.game.session.participants_count,2);
+  assert.deepEqual(c.state.game.participants,next.participants);
+  assert.equal(c.state.game.current_question.image_url,original.current_question.image_url);
+  assert.equal(c.state.game.current_question.answers,original.current_question.answers);
+  assert.deepEqual(c.state.gameSelected,[a]);
+  assert.equal(c.state.game.server_time_ms,11000);
+  assert.equal(c.state.gameOffset,10000);
+  next.server_time_ms=12000;
+  next.current_question.image_url='https://images.test/question?renewed-again';
+  assert.equal(await c.pollGame(),true);
+  assert.deepEqual(changes,['game-progress']);
+  assert.equal(c.state.game.server_time_ms,12000);
+});
+
+test('lobby joins use progress updates before a question is opened',async()=>{
+  const next=snapshot();next.session.participants_count=1;next.participants=[{name:'Студент'}];
+  const changes=[];
+  const {c}=setup(async()=>next,{onChange:(state,change)=>changes.push(change)});
+  c.state.game=snapshot();c.state.screen='game';
+  await c.pollGame();
+  assert.deepEqual(changes,['game-progress']);
+  assert.equal(c.state.game.current_question,null);
+  assert.deepEqual(c.state.game.participants,next.participants);
+});
+
+test('question, closure and student submission changes still accept the full state',async()=>{
+  for(const update of [
+    value=>{value.current_question.id=b;value.current_question.position=1;},
+    value=>{value.session.status='finished';value.results=[{name:'Студент',answered_count:1}];},
+    value=>{value.session.status='cancelled';},
+    value=>{value.current_question.submitted=true;value.current_question.selected_ids=[b];},
+    value=>{value.current_question.accepting_answers=false;},
+  ]) {
+    const next=snapshot(false,question(),'running');update(next);
+    const changes=[];
+    const {c}=setup(async()=>next,{onChange:(state,change)=>changes.push(change)});
+    c.state.game=snapshot(false,question(),'running');c.state.screen='game';
+    await c.pollGame();
+    assert.deepEqual(changes,[undefined]);
+    assert.equal(c.state.game,next);
+    if(next.current_question.submitted) assert.deepEqual(c.state.gameSelected,[b]);
+  }
+});
+
+test('SSE reconnect snapshots use the same progress path as resync',async()=>{
+  const next=snapshot(true,{...question(),answered_count:1},'running');
+  next.server_time_ms=11000;
+  const changes=[];
+  const streamFetch=async()=>({ok:true,status:200,body:new ReadableStream({start(stream){
+    stream.enqueue(new TextEncoder().encode('event: snapshot\ndata: '+JSON.stringify(next)+'\n\n'));
+    stream.close();
+  }})});
+  const {c}=setup(async()=>next,{streamFetch,onChange:(state,change)=>changes.push(change)});
+  c.state.game=snapshot(true,question(),'running');c.state.screen='game';
+  c.syncGameEvents();
+  await new Promise(resolve=>setImmediate(resolve));
+  c.resetGameView();
+  assert.deepEqual(changes,['game-progress']);
 });
 test('answer submission supersedes a pending poll without losing the accepted answer',async()=>{
   let releasePoll,reads=0;

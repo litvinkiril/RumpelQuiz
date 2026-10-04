@@ -45,7 +45,10 @@ export async function consumeGameStream(response, onEvent) {
           if(line.startsWith('event:')) type=line.slice(6).trimStart();
           if(line.startsWith('data:')) data.push(line.slice(5).trimStart());
         }
-        if(data.length) await onEvent(type,JSON.parse(data.join('\n')));
+        if(data.length && await onEvent(type,JSON.parse(data.join('\n')))===false) {
+          await reader.cancel();
+          return;
+        }
       }
       if(buffer.length>1048576) throw new Error('Game event too large');
     }
@@ -61,9 +64,12 @@ export function createGameController({state, authorized, run, emit, fail, storag
     saved={...saved,...patch,owner:state.userId};
     try { storage?.setItem(KEY,JSON.stringify(saved)); } catch {}
   };
-  const accept = value => {
+  const validate = value => {
     if(!value?.success || !UUID.test(value.session?.id || '') || !['waiting','running','finished','cancelled'].includes(value.session.status) || !Number.isFinite(value.server_time_ms))
       throw new Error('Invalid game state');
+  };
+  const accept = value => {
+    validate(value);
     const previous=state.game?.current_question?.id;
     state.game=value; state.gameOffset=value.server_time_ms-now();
     const question=value.current_question;
@@ -71,6 +77,34 @@ export function createGameController({state, authorized, run, emit, fail, storag
     else if(previous!==question?.id) state.gameSelected=[];
     state.screen='game';
     remember({sessionId:value.session.id,code:value.session.join_code,pending:null});
+  };
+  const acceptBackground = value => {
+    validate(value);
+    const previous=state.game;
+    // Signed image URLs can change on every read. Only progress may change
+    // without replacing the question; submission/deadline changes still render.
+    const content = game => {
+      const {server_time_ms,participants,session,current_question,...rest}=game;
+      const {participants_count,...sessionContent}=session;
+      let questionContent=null;
+      if(current_question) {
+        const {answered_count,image_url,answers,...question}=current_question;
+        questionContent={...question,answers:answers.map(({image_url,...answer})=>answer)};
+      }
+      return JSON.stringify({...rest,session:sessionContent,current_question:questionContent});
+    };
+    if(previous && !finished(value) && content(previous)===content(value)) {
+      const changed=previous.session.participants_count!==value.session.participants_count
+        || previous.current_question?.answered_count!==value.current_question?.answered_count
+        || JSON.stringify(previous.participants)!==JSON.stringify(value.participants);
+      state.game={...previous,server_time_ms:value.server_time_ms,
+        session:{...previous.session,participants_count:value.session.participants_count},
+        participants:value.participants,
+        current_question:previous.current_question?{...previous.current_question,answered_count:value.current_question.answered_count}:null};
+      state.gameOffset=value.server_time_ms-now();
+      return changed?'game-progress':false;
+    }
+    accept(value);
   };
   const get = id => authorized('game/sessions/'+encodeURIComponent(id));
   const load = async id => {
@@ -108,10 +142,14 @@ export function createGameController({state, authorized, run, emit, fail, storag
             await consumeGameStream(response,async(type,value)=>{
               while(active() && state.busy) await new Promise(resolve=>setTimeout(resolve,50));
               if(!active()) return;
-              if(type==='snapshot') {
+              if(type==='snapshot' || type==='results') {
                 if(!value?.success || value.session?.id!==id || !Number.isFinite(value.server_time_ms)) return;
+                if(type==='results' && (!finished(value) || !Array.isArray(value.results))) return;
                 if(state.game?.server_time_ms>value.server_time_ms) return;
-                accept(value);state.error='';emit();
+                const change=acceptBackground(value),hadError=!!state.error;
+                state.error='';
+                if(hadError || change!==false) emit(hadError?undefined:change);
+                if(finished(value)) return false;
               } else if(type==='question') {
                 const q=value?.current_question,old=state.game?.current_question;
                 if(!q || !Number.isInteger(q.position) || !Number.isFinite(value.server_time_ms)) return;
@@ -182,15 +220,7 @@ export function createGameController({state, authorized, run, emit, fail, storag
       if(polling || state.screen!=='game' || state.busy || !state.game) return false;
       polling=true;
       try {
-        return await run(()=>load(state.game.session.id),value=>{
-          const {server_time_ms:previousTime,...previous}=state.game;
-          const {server_time_ms:nextTime,...next}=value;
-          if(Number.isFinite(nextTime) && JSON.stringify(previous)===JSON.stringify(next)) {
-            state.gameOffset=nextTime-now();
-            return false;
-          }
-          accept(value);
-        },{background:true});
+        return await run(()=>load(state.game.session.id),acceptBackground,{background:true});
       } finally { polling=false; }
     },
     nextGameQuestion() {
@@ -249,6 +279,20 @@ export function createGameController({state, authorized, run, emit, fail, storag
   return controller;
 }
 const gameImage=url=>/^https:\/\//.test(url || '')?`<img class="game-image" src="${escape(url)}" alt="Изображение к вопросу или варианту" referrerpolicy="no-referrer">`:'';
+const renderParticipants = participants => participants.map(p=>`<span>${escape(p.name)}</span>`).join('') || '<p class="hint">Участники появятся здесь после подключения.</p>';
+export function renderResults(results, questionCount) {
+  return results.length?`<div class="results-scroll"><table class="game-results"><thead><tr><th>Участник</th><th>Ответов</th><th>Правильных</th><th>Баллы</th></tr></thead><tbody>${results.map(r=>`<tr><td>${escape(r.name)}</td><td>${escape(r.answered_count)} / ${escape(r.question_count ?? questionCount)}</td><td>${escape(r.correct_count)}</td><td>${escape(r.score)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty-list">В этой сессии нет участников.</p>';
+}
+export function updateGameProgress(root, game, previous) {
+  const answered=root.querySelector('[data-game-answered]');
+  if(answered) answered.textContent=`Ответили ${game.current_question.answered_count} из ${game.session.participants_count}`;
+  const count=root.querySelector('[data-game-participants-count]');
+  if(count) count.textContent=`Участники · ${game.session.participants_count}`;
+  if(JSON.stringify(previous.participants)!==JSON.stringify(game.participants)) {
+    const list=root.querySelector('.game-people-list');
+    if(list) list.innerHTML=renderParticipants(game.participants);
+  }
+}
 export function renderGame(state,notice) {
   if(state.screen==='game-join') return `<button class="text-button back" data-nav="account">← На главную</button>
     <p class="step-label">Присоединиться к игре</p><h2 tabindex="-1">Введите код сессии</h2>
@@ -272,7 +316,7 @@ export function renderGame(state,notice) {
       <p class="hint">Для телефона в одной сети укажите адрес компьютера, например http://192.168.1.50:8080.</p></details>
       ${/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?=:|\/|$)/.test(link)?'<p class="hint">Сейчас ссылка работает только на этом компьютере. Для других устройств измените адрес выше.</p>':''}</div>
       <div class="game-qr" role="img" aria-label="QR-код подключения к сессии">${qr}</div></section>`:''}
-    ${!ended && q?`<section class="game-question"><div class="game-question-top"><span>${s.is_host?`Ответили ${q.answered_count} из ${s.participants_count}`:'Выберите ответ'}</span><strong data-game-timer role="timer">${seconds>0?seconds+' с':'Время истекло'}</strong></div>
+    ${!ended && q?`<section class="game-question"><div class="game-question-top"><span ${s.is_host?'data-game-answered':''}>${s.is_host?`Ответили ${q.answered_count} из ${s.participants_count}`:'Выберите ответ'}</span><strong data-game-timer role="timer">${seconds>0?seconds+' с':'Время истекло'}</strong></div>
       <h3>${escape(q.text)}</h3>${gameImage(q.image_url)}
       <div class="game-answers">${q.answers.map((a,i)=>`<label class="game-answer ${state.gameSelected.includes(a.id)?'selected':''}"><span class="game-answer-index">${i+1}</span>
       ${!s.is_host?`<input type="${q.type==='single'?'radio':'checkbox'}" name="game-answer" data-game-answer="${escape(a.id)}" ${state.gameSelected.includes(a.id)?'checked':''} ${q.submitted || seconds===0 || state.busy?'disabled':''}>`:''}
@@ -280,10 +324,10 @@ export function renderGame(state,notice) {
       ${!s.is_host?`<p class="hint" data-game-answer-status>${q.submitted?'Ответ сохранён. Ждём следующий вопрос.':seconds===0?'Приём ответов завершён.':q.type==='multy'?'Можно выбрать несколько вариантов. После отправки ответ нельзя изменить.':'После отправки ответ нельзя изменить.'}</p>
       <button class="primary" data-action="game-submit" ${q.submitted || seconds===0 || !state.gameSelected.length || state.busy?'disabled':''}>${q.submitted?'Ответ сохранён':'Отправить ответ'}</button>`:''}</section>`:''}
     ${!q && !ended && !s.is_host?'<div class="game-wait"><span aria-hidden="true">✦</span><h3>Вы в игре</h3><p>Преподаватель скоро откроет первый вопрос.</p></div>':''}
-    ${s.is_host && !ended?`<section class="game-people"><h3>Участники · ${s.participants_count}</h3><div class="game-people-list">${game.participants.map(p=>`<span>${escape(p.name)}</span>`).join('') || '<p class="hint">Участники появятся здесь после подключения.</p>'}</div></section>
+    ${s.is_host && !ended?`<section class="game-people"><h3 data-game-participants-count>Участники · ${s.participants_count}</h3><div class="game-people-list">${renderParticipants(game.participants)}</div></section>
       <div class="game-controls"><button class="primary" data-action="game-next" ${state.busy || q?.has_next===false?'disabled':''}>Следующий вопрос</button><button class="secondary game-close" data-action="game-close" ${state.busy?'disabled':''}>Закрыть сессию</button></div>
       <p class="hint">${q?.has_next===false?'Это последний вопрос. Закройте сессию, когда будете готовы.':!q?'«Следующий вопрос» запустит первый вопрос.':'Переход завершает приём ответов на текущий вопрос.'}</p>`:''}
-    ${ended?`<section class="game-finished"><div class="game-finished-icon" aria-hidden="true">✓</div><h3>${s.status==='cancelled'?'Игра не была начата':'Ответы сохранены'}</h3><p class="subtitle">Участников: ${s.participants_count}. ${s.status==='finished'?'Показано число отправленных ответов, без расчёта баллов.':''}</p>
-      ${game.results.length?`<table class="game-results"><thead><tr><th>Участник</th><th>Ответов</th></tr></thead><tbody>${game.results.map(r=>`<tr><td>${escape(r.name)}</td><td>${r.answered_count} / ${s.question_count}</td></tr>`).join('')}</tbody></table>`:''}
+    ${ended?`<section class="game-finished"><div class="game-finished-icon" aria-hidden="true">✓</div><h3>${s.status==='cancelled'?'Игра не была начата':'Результаты участников'}</h3><p class="subtitle">Участников: ${s.participants_count}. 1 балл за полностью правильный ответ.</p>
+      ${renderResults(game.results,s.question_count)}
       <button class="secondary" data-nav="account">На главную</button></section>`:''}`;
 }

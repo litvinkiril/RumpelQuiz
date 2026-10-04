@@ -78,6 +78,10 @@ add_library(
     src/auth/services/refresh_token/refresh_token_service.cpp
     src/auth/services/auth_session/auth_session_service.cpp
     src/game/service/game_session_service.cpp
+    src/quiz/info/repository/quiz_info_repository.cpp
+    src/quiz/info/service/quiz_info_service.cpp
+    src/quiz/info/handlers/list_quiz_sessions_handler.cpp
+    src/quiz/info/handlers/get_session_results_handler.cpp
     src/game/service/game_events.cpp
     src/auth/handlers/session/session_handlers.cpp
     src/auth/services/login/login_service.cpp

@@ -50,6 +50,9 @@
 #include "media/handlers/upload_image_handler.hpp"
 #include "game/service/game_session_service.hpp"
 
+#include "quiz/info/handlers/list_quiz_sessions_handler.hpp"
+#include "quiz/info/handlers/get_session_results_handler.hpp"
+
 int main(int argc, char* argv[]) {
   userver::server::handlers::auth::RegisterAuthCheckerFactory<
       RumpelQuiz::JwtAuthCheckerFactory>();
@@ -74,6 +77,9 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::PostboxClientComponent>()
           .Append<RumpelQuiz::S3ClientComponent>()
           .Append<RumpelQuiz::QuizService>()
+          .Append<RumpelQuiz::QuizInfoService>()
+          .Append<RumpelQuiz::ListQuizSessionsHandler>()
+          .Append<RumpelQuiz::GetSessionResultsHandler>()
           .Append<RumpelQuiz::MediaService>()
           .Append<RumpelQuiz::UploadImageHandler>()
           .Append<RumpelQuiz::SaveQuizHandler>("handler-create-quiz")

@@ -1,6 +1,9 @@
 import {newQuiz, newQuestion, newAnswer, questionComplete, quizPayload, renderQuiz} from './quiz.js';
-import {createGameController, renderGame, gameSeconds} from './game.js';
+import {createGameController, renderGame, gameSeconds, updateGameProgress} from './game.js';
 export const messages = {
+  session_not_found: 'Сессия не найдена или нет доступа к её результатам.',
+  session_not_finished: 'Сессия ещё не завершена. Результаты появятся после её закрытия.',
+  invalid_session_id: 'Некорректный идентификатор сессии.',
   game_access_denied: 'Нет доступа к этой сессии. Проверьте аккаунт и роль в вузе.',
   game_university_mismatch: 'Подключиться может студент того же вуза, в котором проводится квиз.',
   game_not_found: 'Активная сессия с таким кодом не найдена.',
@@ -109,16 +112,18 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
       purpose: state.purpose, resendAt: state.resendAt,
     })); } catch {}
   };
-  const emit = () => { persist(); onChange({...state}); };
+  const emit = change => { persist(); onChange({...state}, change); };
   const run = async (work, apply, {background=false} = {}) => {
     if (state.busy) return false;
     const current = ++sequence;
     let changed = true;
+    let change;
     if (!background) { state.busy = true; state.error = ''; state.success = ''; emit(); }
     try {
       const result = await work();
       if (current !== sequence) return false;
-      changed = apply(result) !== false;
+      change = apply(result);
+      changed = change !== false;
       return true;
     } catch (error) {
       if (current === sequence) {
@@ -138,7 +143,7 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
     } finally {
       if (current === sequence) {
         if (!background) state.busy = false;
-        if (changed) emit();
+        if (changed) emit(change === 'game-progress' ? change : undefined);
       }
     }
   };
@@ -208,8 +213,36 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
         return {universities,quizzes:list.quizzes};
       }, result => {
         state.quizUniversities=result.universities; state.quizzes=result.quizzes; state.quizErrors=[]; state.quizDirty=false;
+        state.selectedQuiz=null; state.historyQuiz=null; state.quizSessions=null; state.sessionResults=null;
         state.screen=create?'quiz':'quizzes';
         if(create) {state.quizDraft=newQuiz(result.universities.length===1?result.universities[0].id:'');state.quizDirty=true;}
+      });
+    },
+    openQuizActions(id) {
+      if(state.busy || !state.token || state.screen!=='quizzes') return;
+      state.selectedQuiz=state.quizzes?.find(quiz=>quiz.id===id && quiz.status==='ready') || null;
+      state.error='';state.success='';emit();
+    },
+    closeQuizActions() { state.selectedQuiz=null;emit(); },
+    openQuizSessions(id=state.historyQuiz?.id) {
+      if(state.busy || !state.token) return Promise.resolve(false);
+      const quiz=state.quizzes?.find(quiz=>quiz.id===id);
+      if(!quiz) return Promise.resolve(false);
+      state.selectedQuiz=null;state.historyQuiz=quiz;state.quizSessions=null;
+      state.sessionResults=null;state.screen='quiz-sessions';
+      return run(()=>authorized('quizzes/'+encodeURIComponent(id)+'/sessions'),result=>{
+        if(!result?.success || !Array.isArray(result.sessions)) throw new ApiError('Не удалось загрузить сессии. Попробуйте ещё раз.');
+        state.quizSessions=result.sessions;
+      });
+    },
+    openSessionResults(id=state.resultsSession?.session_id) {
+      if(state.busy || !state.token) return Promise.resolve(false);
+      const session=state.quizSessions?.find(item=>item.session_id===id);
+      if(!session) return Promise.resolve(false);
+      state.resultsSession=session;state.sessionResults=null;state.screen='quiz-results';
+      return run(()=>authorized('game/sessions/'+encodeURIComponent(id)+'/results'),result=>{
+        if(!result?.success || result.session_id!==id || !Array.isArray(result.results)) throw new ApiError('Не удалось загрузить результаты. Попробуйте ещё раз.');
+        state.sessionResults=result.results;
       });
     },
     newQuiz() {
@@ -219,7 +252,7 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
     loadQuiz(id) {
       if(state.busy || !state.token) return Promise.resolve(false);
       return run(()=>authorized('quizzes/'+encodeURIComponent(id)),result=>{
-        state.quizDraft=result.quiz;state.quizDirty=false;state.quizErrors=[];state.screen='quiz';
+        state.selectedQuiz=null;state.quizDraft=result.quiz;state.quizDirty=false;state.quizErrors=[];state.screen='quiz';
       });
     },
     editQuiz(field,value,qi,ai) {
@@ -473,7 +506,7 @@ export function renderView(state) {
   let content;
   if (screen === 'game' || screen === 'game-join') {
     content = renderGame(state, notice);
-  } else if (screen === 'quiz' || screen === 'quizzes') {
+  } else if (['quiz','quizzes','quiz-sessions','quiz-results'].includes(screen)) {
     content = renderQuiz(state, notice);
   } else if (screen === 'login' || screen === 'register') {
     const register = screen === 'register';
@@ -587,15 +620,27 @@ export function renderView(state) {
 }
 export function mountApp(root, options = {}) {
   let lastScreen = '';
+  let lastGame = null;
   let lastContactId = null;
+  let lastQuizId = null;
   let controller;
-  const render = (state) => {
+  const render = (state, change) => {
+    if(change === 'game-progress' && lastScreen === 'game' && state.screen === 'game'
+      && lastGame?.session.id === state.game?.session.id
+      && lastGame?.session.status === state.game?.session.status
+      && lastGame?.current_question?.id === state.game?.current_question?.id) {
+      updateGameProgress(root, state.game, lastGame);
+      lastGame = state.game;
+      tick();
+      controller?.syncGameEvents();
+      return;
+    }
     // Keep values across the busy/error render, never in storage.
     const values = new Map([...root.querySelectorAll('input')].map(el => [el.name, el.value]));
     const focusName = root.ownerDocument.activeElement?.getAttribute('name');
     const focusId = root.ownerDocument.activeElement?.id;
     root.innerHTML = renderView(state);
-    const signedIn = ['account', 'profile', 'university', 'admins', 'people', 'quiz', 'quizzes', 'game', 'game-join'].includes(state.screen);
+    const signedIn = ['account', 'profile', 'university', 'admins', 'people', 'quiz', 'quizzes', 'quiz-sessions', 'quiz-results', 'game', 'game-join'].includes(state.screen);
     root.ownerDocument.body.classList.toggle('signed-in', signedIn);
     const nav = root.ownerDocument.getElementById('account-nav');
     if (nav) {
@@ -617,21 +662,26 @@ export function mountApp(root, options = {}) {
       root.querySelector('h2')?.focus();
     }
     lastScreen = state.screen;
+    lastGame = state.game;
     for (const el of root.querySelectorAll('input,button')) if (state.busy && !el.dataset.nav) el.disabled = true;
     const dialog = root.querySelector('dialog');
     if (dialog) {
-      dialog.addEventListener('cancel', event => { event.preventDefault(); controller.closeAdmin(); });
+      const closeDialog=()=>dialog.hasAttribute('data-quiz-dialog')?controller.closeQuizActions():controller.closeAdmin();
+      dialog.addEventListener('cancel', event => { event.preventDefault(); closeDialog(); });
       dialog.addEventListener('click', event => {
         if (event.target !== dialog) return;
         const bounds = dialog.getBoundingClientRect();
         if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)
-          controller.closeAdmin();
+          closeDialog();
       });
       dialog.showModal();
     } else if (lastContactId && ['admins', 'people'].includes(state.screen)) {
       [...root.querySelectorAll('[data-membership-id]')].find(el => el.dataset.membershipId === lastContactId)?.focus();
+    } else if (lastQuizId && state.screen==='quizzes') {
+      [...root.querySelectorAll('[data-action="quiz-actions"]')].find(el=>el.dataset.id===lastQuizId)?.focus();
     }
     lastContactId = state.selectedAdmin?.membership_id || state.selectedAdmin?.user_id || null;
+    lastQuizId = state.selectedQuiz?.id || null;
     tick();
     controller?.syncGameEvents();
   };
@@ -708,6 +758,10 @@ export function mountApp(root, options = {}) {
     if(['create-quiz','my-quizzes','new-quiz','edit-quiz','profile','logout'].includes(action) && !canLeave()) return;
     if(action==='create-quiz') void controller.openQuizzes(true);
     if(action==='my-quizzes') void controller.openQuizzes();
+    if(action==='quiz-actions') controller.openQuizActions(button.dataset.id);
+    if(action==='close-quiz-actions') controller.closeQuizActions();
+    if(action==='quiz-sessions') void controller.openQuizSessions(button.dataset.id);
+    if(action==='session-results') void controller.openSessionResults(button.dataset.id);
     if(action==='new-quiz') controller.newQuiz();
     if(action==='edit-quiz') void controller.loadQuiz(button.dataset.id);
     if(action==='quiz-save-draft') void controller.saveQuiz('draft');

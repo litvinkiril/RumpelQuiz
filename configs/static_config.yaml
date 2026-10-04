@@ -284,6 +284,21 @@ components_manager:
                   - jwt
 
         quiz-service: {}
+        quiz-info-service: {}
+        handler-list-quiz-sessions:
+            path: /v1/quizzes/{quiz_id}/sessions
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+        handler-get-session-results:
+            path: /v1/game/sessions/{session_id}/results
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
         media-service: {}
         handler-create-quiz:
             path: /v1/quizzes
