@@ -110,22 +110,31 @@ userver::formats::json::Value QuizInfoRepository::GetSessionResults(
       SELECT user_id, count(*) AS answered_count,
              count(*) FILTER (WHERE correct) AS correct_count
       FROM scored GROUP BY user_id
+    ), ranked AS (
+      SELECT p.user_id, p.joined_at, s.quiz_id, s.status,
+             COALESCE(t.answered_count, 0) AS answered_count,
+             COALESCE(t.correct_count, 0) AS correct_count,
+             CASE WHEN s.status='finished' THEN
+               rank() OVER (ORDER BY COALESCE(t.correct_count, 0) DESC)
+             END AS rank
+      FROM game.participants p
+      JOIN game.sessions s ON s.id=p.session_id
+      LEFT JOIN totals t ON t.user_id=p.user_id
+      WHERE p.session_id=$1 AND s.status IN ('finished','cancelled')
     )
     SELECT COALESCE(jsonb_agg(jsonb_build_object(
-      'user_id', p.user_id,
+      'user_id', r.user_id,
       'name', COALESCE(NULLIF(btrim(concat_ws(' ',
         NULLIF(btrim(pr.last_name), ''), NULLIF(btrim(pr.first_name), ''),
         NULLIF(btrim(pr.middle_name), ''))), ''), 'Участник'),
-      'answered_count', COALESCE(t.answered_count, 0),
-      'correct_count', COALESCE(t.correct_count, 0),
-      'score', COALESCE(t.correct_count, 0),
-      'question_count', (SELECT count(*) FROM quiz.questions WHERE quiz_id=s.quiz_id)
-    ) ORDER BY COALESCE(t.correct_count, 0) DESC, p.joined_at, p.user_id), '[]'::jsonb)::text
-    FROM game.participants p
-    JOIN game.sessions s ON s.id=p.session_id
-    LEFT JOIN users.profiles pr ON pr.user_id=p.user_id
-    LEFT JOIN totals t ON t.user_id=p.user_id
-    WHERE p.session_id=$1 AND s.status IN ('finished','cancelled')
+      'answered_count', r.answered_count,
+      'correct_count', r.correct_count,
+      'score', r.correct_count,
+      'rank', r.rank,
+      'question_count', (SELECT count(*) FROM quiz.questions WHERE quiz_id=r.quiz_id)
+    ) ORDER BY r.correct_count DESC, r.joined_at, r.user_id), '[]'::jsonb)::text
+    FROM ranked r
+    LEFT JOIN users.profiles pr ON pr.user_id=r.user_id
   )", session_id).AsSingleRow<std::string>();
   return userver::formats::json::FromString(json);
 }

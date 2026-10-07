@@ -84,6 +84,7 @@ async def test_results_exact_sets_and_identical_visibility(service_client, pgsql
     assert response.status == 200
     expected = response.json()['results']
     assert [r['score'] for r in expected] == [2, 1, 1, 0, 0]
+    assert [r['rank'] for r in expected] == [1, 2, 2, 4, 4]
     by_user = {r['user_id']: r for r in expected}
     for student, score in zip(students, [2, 1, 1, 0, 0]):
         assert by_user[student]['score'] == by_user[student]['correct_count'] == score
@@ -122,6 +123,7 @@ async def test_history_and_results_access_validation(service_client, pgsql):
     membership(c, participant, uni, role='student')
     c.execute('INSERT INTO game.participants(session_id,user_id) VALUES(%s,%s)', (sid, participant))
     assert (await results(service_client, participant, sid)).status == 200
+    assert (await results(service_client, participant, sid)).json()['results'][0]['rank'] is None
     c.execute("UPDATE education.memberships SET status='inactive' WHERE user_id=%s", (participant,))
     assert (await results(service_client, participant, sid)).status == 404
 

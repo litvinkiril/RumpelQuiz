@@ -155,6 +155,7 @@ add_executable(
     tests/unit/education/admin_access_test.cpp
     tests/unit/s3client/s3client_test.cpp
     tests/unit/quiz/quiz_test.cpp
+    tests/unit/quiz/game_presence_test.cpp
 )
 target_link_libraries(${PROJECT_NAME}_unittest PRIVATE ${PROJECT_NAME}_objs userver::utest)
 add_dependencies(${PROJECT_NAME}_unittest ${PROJECT_NAME}_headers)

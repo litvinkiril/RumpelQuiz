@@ -68,6 +68,9 @@ void GameEventsHandler::HandleStreamRequest(
   };
   send_state(ended(state));
   if (ended(state)) return;
+  auto last_presence = is_host
+      ? userver::formats::json::ToString(state["presence"]) : std::string{};
+  auto presence_at = std::chrono::steady_clock::now();
 
   // Refresh the bearer token at reconnect and bound the lifetime of a stream.
   const auto token_expiry = std::chrono::system_clock::time_point{
@@ -93,10 +96,19 @@ void GameEventsHandler::HandleStreamRequest(
           userver::engine::Deadline::FromDuration(std::chrono::seconds{5}));
       continue;
     }
-    if (!subscriber->wake.WaitForEventFor(std::chrono::seconds{15})) {
+    if (is_host && std::chrono::steady_clock::now() >= presence_at) {
+      const auto presence = userver::formats::json::ToString(events_.ReadPresence(*session));
+      if (presence != last_presence) {
+        stream.PushBodyChunk("event: presence\ndata: " + presence + "\n\n",
+            userver::engine::Deadline::FromDuration(std::chrono::seconds{5}));
+        last_presence = presence;
+      }
+      presence_at = std::chrono::steady_clock::now() + std::chrono::seconds{2};
+    }
+    if (!subscriber->wake.WaitForEventFor(std::chrono::seconds{is_host ? 2 : 10})) {
       if (userver::engine::current_task::ShouldCancel()) break;
       stream.PushBodyChunk(
-          std::string{": ping\n\n"},
+          std::string{is_host ? ": ping\n\n" : "event: heartbeat\ndata: {}\n\n"},
           userver::engine::Deadline::FromDuration(std::chrono::seconds{5}));
     }
   }

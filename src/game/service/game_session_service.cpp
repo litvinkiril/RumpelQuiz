@@ -1,4 +1,5 @@
 #include "game_session_service.hpp"
+#include <boost/uuid/uuid_io.hpp>
 
 #include <userver/formats/json.hpp>
 #include <userver/formats/json/serialize.hpp>
@@ -120,6 +121,7 @@ GameSessionResult GameSessionService::Close(
 
   tx.Commit();
   events_.Publish(session_id, GameEvents::Audience::kAll, "results", "{}");
+  events_.presence.Clear(boost::uuids::to_string(session_id));
   return result;
 }
 
@@ -129,6 +131,8 @@ userver::formats::json::Value GameSessionService::Read(
   auto state = play_repository_.Read(tx, user, session);
   tx.Commit();
   userver::formats::json::ValueBuilder out(state);
+  if (state["session"]["is_host"].As<bool>())
+    out["presence"] = events_.ReadPresence(session);
   if (!state["current_question"].IsNull()) {
     const auto sign = [&](auto target, const auto& source) {
       auto key = source["image_key"].template As<std::optional<std::string>>();
@@ -159,5 +163,24 @@ void GameSessionService::Submit(
   play_repository_.Submit(tx, user, session, question, choices);
   tx.Commit();
   events_.Publish(session, GameEvents::Audience::kHost, "resync", "{}");
+}
+void GameSessionService::UpdatePresence(
+    const boost::uuids::uuid& user, const boost::uuids::uuid& session,
+    const boost::uuids::uuid& client, std::int64_t sequence, bool online) const {
+  auto tx = pg_->Begin(pg::ClusterHostType::kMaster, pg::TransactionOptions{});
+  const auto allowed = tx.Execute(R"(
+    SELECT s.status FROM game.sessions s
+    JOIN game.participants p ON p.session_id=s.id AND p.user_id=$2
+    WHERE s.id=$1 AND s.host_user_id<>$2 AND EXISTS(
+      SELECT 1 FROM education.memberships m WHERE m.user_id=$2
+      AND m.university_id=s.university_id AND m.role='student' AND m.status='active'
+    ) FOR SHARE OF s
+  )", session, user);
+  if (allowed.IsEmpty()) throw GamePlayError("game_access_denied");
+  const auto status = allowed.AsSingleRow<std::string>();
+  if (status != "waiting" && status != "running") throw GamePlayError("session_closed");
+  events_.presence.Update(boost::uuids::to_string(session), boost::uuids::to_string(user),
+                          boost::uuids::to_string(client), sequence, online);
+  tx.Commit();
 }
 }  // namespace RumpelQuiz

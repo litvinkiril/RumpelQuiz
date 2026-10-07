@@ -11,6 +11,8 @@
 #include <boost/uuid/uuid.hpp>
 #include <userver/components/component_base.hpp>
 #include <userver/engine/single_consumer_event.hpp>
+#include <userver/formats/json/value.hpp>
+#include "game_presence.hpp"
 
 namespace RumpelQuiz {
 
@@ -35,6 +37,8 @@ class GameEvents final : public userver::components::ComponentBase {
   void Publish(const boost::uuids::uuid& session, Audience audience,
                std::string_view type, std::string_view json);
   static std::string Pop(const std::shared_ptr<Subscriber>& subscriber);
+  GamePresence presence;
+  userver::formats::json::Value ReadPresence(const boost::uuids::uuid& session) const;
 
  private:
   std::mutex mutex_;

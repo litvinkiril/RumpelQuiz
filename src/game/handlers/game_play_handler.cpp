@@ -34,6 +34,18 @@ userver::formats::json::Value GamePlayHandler::HandleRequestJsonThrow(
     auto session = GameHttp::ParseUuid(req.GetPathArg("session_id"));
     if (!session) throw GamePlayError("invalid_request");
     if (method_ == "GET") return service_.Read(user, *session);
+    if (req.GetRequestPath().ends_with("/presence")) {
+      const auto client = GameHttp::ReadUuid(body, "client_id");
+      if (!client || !body.HasMember("sequence") || !body["sequence"].IsInt64() ||
+          body["sequence"].As<std::int64_t>() < 0 ||
+          !body.HasMember("online") || !body["online"].IsBool())
+        throw GamePlayError("invalid_request");
+      service_.UpdatePresence(user, *session, *client,
+                              body["sequence"].As<std::int64_t>(), body["online"].As<bool>());
+      GameHttp::Builder out;
+      out["success"] = true;
+      return out.ExtractValue();
+    }
     auto question = GameHttp::ReadUuid(body, "question_id");
     if (!question || !body.HasMember("answer_ids") ||
         !body["answer_ids"].IsArray() || body["answer_ids"].GetSize() > 20)

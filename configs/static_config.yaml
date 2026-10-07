@@ -221,6 +221,14 @@ components_manager:
             request_body_size_log_limit: 0
             auth:
                 types: [jwt]
+        handler-game-presence:
+            path: /v1/game/sessions/{session_id}/presence
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            auth:
+                types: [jwt]
 
         resend-code-service:
             verification-code-ttl-seconds: $email-verification-code-ttl-seconds

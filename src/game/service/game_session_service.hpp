@@ -52,6 +52,9 @@ class GameSessionService final : public userver::components::ComponentBase {
   void Submit(const boost::uuids::uuid& user, const boost::uuids::uuid& session,
               const boost::uuids::uuid& question,
               const std::vector<boost::uuids::uuid>& choices) const;
+  void UpdatePresence(const boost::uuids::uuid& user, const boost::uuids::uuid& session,
+                      const boost::uuids::uuid& client, std::int64_t sequence,
+                      bool online) const;
 };
 
 }  // namespace RumpelQuiz

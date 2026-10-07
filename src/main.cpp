@@ -117,7 +117,8 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::GameSessionService>()
           .Append<RumpelQuiz::GamePlayHandler>()
           .Append<RumpelQuiz::GamePlayHandler>("handler-game-join")
-          .Append<RumpelQuiz::GamePlayHandler>("handler-game-answer");
+          .Append<RumpelQuiz::GamePlayHandler>("handler-game-answer")
+          .Append<RumpelQuiz::GamePlayHandler>("handler-game-presence");
 
   return userver::utils::DaemonMain(argc, argv, component_list);
 }

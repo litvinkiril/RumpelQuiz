@@ -2,8 +2,21 @@
 
 #include <algorithm>
 #include <boost/uuid/uuid_io.hpp>
+#include <userver/formats/json.hpp>
 
 namespace RumpelQuiz {
+
+userver::formats::json::Value GameEvents::ReadPresence(
+    const boost::uuids::uuid& session) const {
+  userver::formats::json::ValueBuilder out(userver::formats::json::Type::kArray);
+  for (const auto& status : presence.Read(boost::uuids::to_string(session))) {
+    userver::formats::json::ValueBuilder item;
+    item["user_id"] = status.user_id;
+    item["online"] = status.online;
+    out.PushBack(item.ExtractValue());
+  }
+  return out.ExtractValue();
+}
 
 std::shared_ptr<GameEvents::Subscriber> GameEvents::Subscribe(
     const boost::uuids::uuid& session, bool is_host) {

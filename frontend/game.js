@@ -58,8 +58,36 @@ export function createGameController({state, authorized, run, emit, fail, storag
   let polling=false;
   let streamAbort=null,streamSession='',streamTask=null;
   let saved={};
+  let presenceSession='',presenceToken='',presenceClient='',presenceSequence=0,presenceAt=0;
+  const sendPresence = online => {
+    if(!presenceSession || !presenceToken || !presenceClient) return;
+    const body={client_id:presenceClient,sequence:++presenceSequence,online};
+    // keepalive also permits the final authenticated report during pagehide.
+    try {
+      void Promise.resolve(streamFetch('/v1/game/sessions/'+encodeURIComponent(presenceSession)+'/presence',{
+        method:'POST',headers:{Authorization:'Bearer '+presenceToken,'Content-Type':'application/json'},
+        body:JSON.stringify(body),keepalive:true,
+      })).catch(()=>{});
+    } catch {}
+  };
+  const acceptPresence = presence => {
+    if(!state.game?.session.is_host || !Array.isArray(presence)) return false;
+    const valid=presence.filter(p=>typeof p?.user_id==='string' && typeof p.online==='boolean');
+    const previous=new Map((state.game.presence || []).map(p=>[p.user_id,p.online]));
+    const alerts=[...(state.gameAlerts || [])];
+    for(const p of valid) {
+      const participant=state.game.participants.find(person=>person.user_id===p.user_id);
+      if(!participant || previous.get(p.user_id)===p.online) continue;
+      if(!p.online || previous.get(p.user_id)===false)
+        alerts.unshift({name:participant.name,online:p.online,time:now()});
+    }
+    const changed=JSON.stringify(state.game.presence || [])!==JSON.stringify(valid);
+    state.game={...state.game,presence:valid};
+    state.gameAlerts=alerts.slice(0,20);
+    return changed;
+  };
   try { const value=JSON.parse(storage?.getItem(KEY) || '{}'); if(value && typeof value==='object') saved=value; } catch {}
-  Object.assign(state,{game:null,gameSelected:[],gameOffset:0,gameOrigin:origin,gameJoinCode:/^\d{6}$/.test(joinCode)?joinCode:''});
+  Object.assign(state,{game:null,gameSelected:[],gameAlerts:[],gameOffset:0,gameOrigin:origin,gameJoinCode:/^\d{6}$/.test(joinCode)?joinCode:''});
   const remember = patch => {
     saved={...saved,...patch,owner:state.userId};
     try { storage?.setItem(KEY,JSON.stringify(saved)); } catch {}
@@ -71,6 +99,12 @@ export function createGameController({state, authorized, run, emit, fail, storag
   const accept = value => {
     validate(value);
     const previous=state.game?.current_question?.id;
+    if(state.game?.session.id!==value.session.id) state.gameAlerts=[];
+    if(value.session.is_host) {
+      const old=state.game;
+      state.game={...value,presence:old?.session.id===value.session.id?old.presence:[]};
+      acceptPresence(value.presence || []);
+    }
     state.game=value; state.gameOffset=value.server_time_ms-now();
     const question=value.current_question;
     if(question?.submitted) state.gameSelected=[...question.selected_ids];
@@ -84,7 +118,7 @@ export function createGameController({state, authorized, run, emit, fail, storag
     // Signed image URLs can change on every read. Only progress may change
     // without replacing the question; submission/deadline changes still render.
     const content = game => {
-      const {server_time_ms,participants,session,current_question,...rest}=game;
+      const {server_time_ms,participants,presence,session,current_question,...rest}=game;
       const {participants_count,...sessionContent}=session;
       let questionContent=null;
       if(current_question) {
@@ -101,8 +135,9 @@ export function createGameController({state, authorized, run, emit, fail, storag
         session:{...previous.session,participants_count:value.session.participants_count},
         participants:value.participants,
         current_question:previous.current_question?{...previous.current_question,answered_count:value.current_question.answered_count}:null};
+      const presenceChanged=acceptPresence(value.presence || []);
       state.gameOffset=value.server_time_ms-now();
-      return changed?'game-progress':false;
+      return changed || presenceChanged?'game-progress':false;
     }
     accept(value);
   };
@@ -112,8 +147,21 @@ export function createGameController({state, authorized, run, emit, fail, storag
     return value;
   };
   const controller = {
-    resetGameView() { state.game=null; state.gameSelected=[]; controller.syncGameEvents(); },
+    resetGameView() { state.game=null; state.gameSelected=[]; state.gameAlerts=[]; controller.syncGameEvents(); },
+    syncGamePresence() {
+      const id=state.screen==='game' && state.token && state.game && !state.game.session.is_host && !finished(state.game)?state.game.session.id:'';
+      if(id!==presenceSession) {
+        if(presenceSession) sendPresence(false);
+        presenceSession=id;presenceClient=id?makeId():'';presenceSequence=0;presenceAt=0;
+      }
+      presenceToken=state.token;
+      if(id && now()>=presenceAt) { sendPresence(true);presenceAt=now()+10000; }
+    },
+    suspendGamePresence() {
+      sendPresence(false);presenceAt=0;
+    },
     syncGameEvents() {
+      controller.syncGamePresence();
       const id=state.screen==='game' && state.token && state.game && !finished(state.game)?state.game.session.id:'';
       if(id===streamSession && streamTask) return;
       streamAbort?.abort();streamAbort=null;streamTask=null;streamSession=id;
@@ -142,7 +190,9 @@ export function createGameController({state, authorized, run, emit, fail, storag
             await consumeGameStream(response,async(type,value)=>{
               while(active() && state.busy) await new Promise(resolve=>setTimeout(resolve,50));
               if(!active()) return;
-              if(type==='snapshot' || type==='results') {
+              if(type==='heartbeat') {
+                controller.syncGamePresence();
+              } else if(type==='snapshot' || type==='results') {
                 if(!value?.success || value.session?.id!==id || !Number.isFinite(value.server_time_ms)) return;
                 if(type==='results' && (!finished(value) || !Array.isArray(value.results))) return;
                 if(state.game?.server_time_ms>value.server_time_ms) return;
@@ -159,6 +209,8 @@ export function createGameController({state, authorized, run, emit, fail, storag
                 state.error='';emit();
               } else if(type==='resync') {
                 await controller.pollGame();
+              } else if(type==='presence' && state.game.session.is_host) {
+                if(acceptPresence(value)) emit('game-progress');
               }
             });
           } catch(error) {
@@ -279,18 +331,44 @@ export function createGameController({state, authorized, run, emit, fail, storag
   return controller;
 }
 const gameImage=url=>/^https:\/\//.test(url || '')?`<img class="game-image" src="${escape(url)}" alt="Изображение к вопросу или варианту" referrerpolicy="no-referrer">`:'';
-const renderParticipants = participants => participants.map(p=>`<span>${escape(p.name)}</span>`).join('') || '<p class="hint">Участники появятся здесь после подключения.</p>';
-export function renderResults(results, questionCount) {
-  return results.length?`<div class="results-scroll"><table class="game-results"><thead><tr><th>Участник</th><th>Ответов</th><th>Правильных</th><th>Баллы</th></tr></thead><tbody>${results.map(r=>`<tr><td>${escape(r.name)}</td><td>${escape(r.answered_count)} / ${escape(r.question_count ?? questionCount)}</td><td>${escape(r.correct_count)}</td><td>${escape(r.score)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty-list">В этой сессии нет участников.</p>';
+const renderParticipants = (participants,presence=[]) => {
+  const online=new Map(presence.map(p=>[p.user_id,p.online]));
+  return participants.map(p=>`<span class="${online.get(p.user_id)===false?'game-person-offline':''}">${escape(p.name)}${online.has(p.user_id)?`<small>${online.get(p.user_id)?'В квизе':'Нет связи'}</small>`:''}</span>`).join('') || '<p class="hint">Участники появятся здесь после подключения.</p>';
+};
+const renderGameAlerts = alerts => (alerts || []).map(a=>`<li class="${a.online?'returned':'left'}"><strong>${escape(a.name)}</strong> — ${a.online?'снова в квизе':'вышел из квиза или потерял связь'}<time>${escape(new Date(a.time).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'}))}</time></li>`).join('');
+export function renderResults(results, questionCount, {userId='',status='finished'}={}) {
+  if(!results.length) return '<div class="results-empty"><span aria-hidden="true">◇</span><p>В этой сессии нет участников.</p></div>';
+  const cancelled=status==='cancelled';
+  const count=Number.isFinite(questionCount)?questionCount:results[0].question_count || 0;
+  const best=Math.max(...results.map(r=>Number(r.score) || 0));
+  const place=r=>!cancelled && Number.isInteger(r.rank) && r.rank>0?r.rank:null;
+  const groups=[1,2,3].map(rank=>({rank,people:results.filter(r=>place(r)===rank && r.score>0)})).filter(g=>g.people.length);
+  const tied=new Set(results.map(place).filter(Boolean)).size<results.filter(r=>place(r)!==null).length;
+  const initials=name=>String(name || 'Участник').trim().split(/\s+/).slice(0,2).map(n=>[...n][0] || '').join('').toLocaleUpperCase('ru-RU');
+  const percent=r=>Math.min(100,Math.max(0,Math.round((Number(r.correct_count) || 0)/Math.max(1,r.question_count ?? count)*100)));
+  return `<div class="results-board">
+    <div class="results-overview"><div><span>Участников</span><strong>${results.length}</strong></div><div><span>Вопросов</span><strong>${escape(count)}</strong></div>${!cancelled?`<div><span>Лучший результат</span><strong>${escape(best)}<small> / ${escape(count)}</small></strong></div>`:''}</div>
+    ${groups.length?`<section class="results-leaders" aria-label="Призовые места">${groups.map(g=>`<article class="result-leader place-${g.rank}"><span class="leader-place"><span aria-hidden="true">${g.rank===1?'★':'✦'}</span> ${g.rank} место</span><div class="leader-names">${g.people.slice(0,3).map(p=>`<strong>${escape(p.name)}</strong>`).join('')}${g.people.length>3?`<span class="leader-more">Ещё участников: ${g.people.length-3} · все в таблице ниже</span>`:''}</div><div class="leader-score">${escape(g.people[0].score)} <span>из ${escape(count)} баллов</span></div>${g.people.length>1?'<span class="leader-tie">Разделили место</span>':''}</article>`).join('')}</section>`:''}
+    <div class="results-table-heading"><h3>${cancelled?'Участники сессии':'Итоговый рейтинг'}</h3><p>${cancelled?'Игра не началась — места не присуждаются.':tied?'При равных баллах участники делят место.':'1 балл за полностью правильный ответ.'}</p></div>
+    <div class="results-scroll"><table class="game-results ranked-results"><caption class="results-sr-only">${cancelled?'Участники отменённой сессии':'Рейтинг участников по количеству баллов'}</caption><thead><tr><th scope="col">Место</th><th scope="col">Участник</th><th scope="col">Ответов</th><th scope="col">Правильных</th><th scope="col">Баллы</th></tr></thead><tbody>${results.map(r=>{
+      const rank=place(r),mine=!!userId && r.user_id===userId;
+      return `<tr class="${mine?'result-self':''}"><td><span class="result-rank ${rank && rank<=3 && r.score>0?'rank-'+rank:''}" aria-label="${rank?rank+' место':'Место не присуждено'}">${rank ?? '—'}</span></td><td><div class="result-person"><span class="result-avatar" aria-hidden="true">${escape(initials(r.name))}</span><span>${escape(r.name)}${mine?'<small class="result-you">Вы</small>':''}</span></div></td><td data-label="Ответов">${escape(r.answered_count)} / ${escape(r.question_count ?? count)}</td><td data-label="Правильных"><span class="result-correct">${escape(r.correct_count)}<small>${percent(r)}%</small></span><progress class="result-meter" max="100" value="${percent(r)}" aria-label="Правильных ответов, %">${percent(r)}%</progress></td><td><strong class="result-score">${escape(r.score)}</strong><span class="result-score-label">баллы</span></td></tr>`;
+    }).join('')}</tbody></table></div>
+  </div>`;
 }
-export function updateGameProgress(root, game, previous) {
+export function updateGameProgress(root, game, previous, alerts=[]) {
   const answered=root.querySelector('[data-game-answered]');
   if(answered) answered.textContent=`Ответили ${game.current_question.answered_count} из ${game.session.participants_count}`;
   const count=root.querySelector('[data-game-participants-count]');
   if(count) count.textContent=`Участники · ${game.session.participants_count}`;
-  if(JSON.stringify(previous.participants)!==JSON.stringify(game.participants)) {
+  if(JSON.stringify(previous.participants)!==JSON.stringify(game.participants) || JSON.stringify(previous.presence)!==JSON.stringify(game.presence)) {
     const list=root.querySelector('.game-people-list');
-    if(list) list.innerHTML=renderParticipants(game.participants);
+    if(list) list.innerHTML=renderParticipants(game.participants,game.presence);
+  }
+  const notifications=root.querySelector('[data-game-alerts]');
+  if(notifications) {
+    const html=renderGameAlerts(alerts);
+    if(notifications.innerHTML!==html) notifications.innerHTML=html;
   }
 }
 export function renderGame(state,notice) {
@@ -324,10 +402,11 @@ export function renderGame(state,notice) {
       ${!s.is_host?`<p class="hint" data-game-answer-status>${q.submitted?'Ответ сохранён. Ждём следующий вопрос.':seconds===0?'Приём ответов завершён.':q.type==='multy'?'Можно выбрать несколько вариантов. После отправки ответ нельзя изменить.':'После отправки ответ нельзя изменить.'}</p>
       <button class="primary" data-action="game-submit" ${q.submitted || seconds===0 || !state.gameSelected.length || state.busy?'disabled':''}>${q.submitted?'Ответ сохранён':'Отправить ответ'}</button>`:''}</section>`:''}
     ${!q && !ended && !s.is_host?'<div class="game-wait"><span aria-hidden="true">✦</span><h3>Вы в игре</h3><p>Преподаватель скоро откроет первый вопрос.</p></div>':''}
-    ${s.is_host && !ended?`<section class="game-people"><h3 data-game-participants-count>Участники · ${s.participants_count}</h3><div class="game-people-list">${renderParticipants(game.participants)}</div></section>
+    ${s.is_host && !ended?`<section class="game-people"><h3 data-game-participants-count>Участники · ${s.participants_count}</h3><div class="game-people-list">${renderParticipants(game.participants,game.presence)}</div>
+      <ul class="game-alerts" data-game-alerts aria-live="polite" aria-relevant="additions" aria-label="Уведомления об участниках">${renderGameAlerts(state.gameAlerts)}</ul></section>
       <div class="game-controls"><button class="primary" data-action="game-next" ${state.busy || q?.has_next===false?'disabled':''}>Следующий вопрос</button><button class="secondary game-close" data-action="game-close" ${state.busy?'disabled':''}>Закрыть сессию</button></div>
       <p class="hint">${q?.has_next===false?'Это последний вопрос. Закройте сессию, когда будете готовы.':!q?'«Следующий вопрос» запустит первый вопрос.':'Переход завершает приём ответов на текущий вопрос.'}</p>`:''}
-    ${ended?`<section class="game-finished"><div class="game-finished-icon" aria-hidden="true">✓</div><h3>${s.status==='cancelled'?'Игра не была начата':'Результаты участников'}</h3><p class="subtitle">Участников: ${s.participants_count}. 1 балл за полностью правильный ответ.</p>
-      ${renderResults(game.results,s.question_count)}
+    ${ended?`<section class="game-finished"><div class="game-finished-icon" aria-hidden="true">${s.status==='cancelled'?'◇':'✦'}</div><h3>${s.status==='cancelled'?'Игра не была начата':'Квиз пройден. Вот итоги!'}</h3><p class="subtitle">${s.status==='cancelled'?'Сессия завершилась до первого вопроса.':'Спасибо за игру! Каждый правильный ответ — шаг к победе.'}</p>
+      ${renderResults(game.results,s.question_count,{userId:state.userId,status:s.status})}
       <button class="secondary" data-nav="account">На главную</button></section>`:''}`;
 }

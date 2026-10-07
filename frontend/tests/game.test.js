@@ -35,11 +35,61 @@ test('SSE parser handles split frames and skips heartbeat comments',async()=>{
   await consumeGameStream({body},(type,data)=>frames.push([type,data]));
   assert.deepEqual(frames,[['question',{id:'q'}]]);
 });
+
+test('presence renews every ten seconds, uses fresh auth, and reports navigation/pagehide',()=>{
+  const requests=[];let clock=1000;
+  const {c}=setup(async()=>{}, {now:()=>clock,streamFetch:(url,options)=>{requests.push({url,...options,body:JSON.parse(options.body)});return Promise.resolve({ok:true});}});
+  c.state.screen='game';c.state.game=snapshot(false);
+  c.syncGamePresence();c.syncGamePresence();
+  assert.equal(requests.length,1);
+  assert.equal(requests[0].body.online,true);assert.equal(requests[0].keepalive,true);
+  clock+=10000;c.state.token='renewed';c.syncGamePresence();
+  assert.equal(requests[1].headers.Authorization,'Bearer renewed');
+  c.suspendGamePresence();
+  assert.equal(requests[2].body.online,false);
+  c.syncGamePresence();
+  assert.equal(requests[3].body.online,true);
+  c.state.screen='account';c.syncGamePresence();c.syncGamePresence();
+  assert.deepEqual(requests.map(r=>r.body.sequence),[1,2,3,4,5]);
+  assert.equal(requests.at(-1).body.online,false);
+  c.state.screen='game';c.state.game=snapshot();c.syncGamePresence();
+  assert.equal(requests.length,5,'Teachers do not send presence');
+});
+
+test('host SSE presence shows escaped departure and return alerts without a state GET',async()=>{
+  let stream;
+  const host=snapshot();host.participants=[{user_id:a,name:'<Студент>'}];host.session.participants_count=1;
+  host.presence=[{user_id:a,online:true}];
+  const {c}=setup(async()=>assert.fail('Presence needs no GET'),{streamFetch:async(url,options)=>({ok:true,status:200,body:new ReadableStream({start(s){stream=s;options.signal.addEventListener('abort',()=>s.close());}})})});
+  c.state.game=host;c.state.screen='game';c.syncGameEvents();
+  const send=async online=>{stream.enqueue(new TextEncoder().encode('event: presence\ndata: '+JSON.stringify([{user_id:a,online}])+'\n\n'));await new Promise(resolve=>setImmediate(resolve));};
+  try {
+    await send(false);await send(false);
+    assert.equal(c.state.gameAlerts.length,1);
+    const html=renderGame(c.state,'');
+    assert.match(html,/Нет связи/);assert.match(html,/вышел из квиза или потерял связь/);
+    assert.match(html,/&lt;Студент&gt;/);assert.doesNotMatch(html,/<Студент>/);
+    await send(true);assert.equal(c.state.gameAlerts.length,2);
+    assert.match(renderGame(c.state,''),/снова в квизе/);
+  } finally {c.state.screen='account';c.syncGameEvents();}
+});
+
+test('reconnect snapshot restores offline status without duplicating alerts or clearing selections',async()=>{
+  const next=snapshot(true,question(),'running');next.participants=[{user_id:a,name:'Студент'}];next.presence=[{user_id:a,online:false}];
+  const {c}=setup(async()=>next);
+  c.state.game={...next,presence:[{user_id:a,online:true}]};c.state.screen='game';c.state.gameSelected=[a];
+  await c.pollGame();await c.pollGame();
+  assert.equal(c.state.gameAlerts.length,1);assert.deepEqual(c.state.gameSelected,[a]);
+  next.current_question={...question(),id:b,position:1};
+  await c.refreshGame();assert.deepEqual(c.state.gameSelected,[]);
+  assert.equal(c.state.gameAlerts.length,1);
+});
 test('SSE sends a new question without a state GET',async()=>{
   const calls=[],requested=[];
   const payload='event: snapshot\ndata: '+JSON.stringify(snapshot(false))+'\n\n'
     +'event: question\ndata: '+JSON.stringify({server_time_ms:11000,current_question:question()})+'\n\n';
   const streamFetch=async(url,options)=>{
+    if(url.endsWith('/presence')) return {ok:true,status:200};
     requested.push({url,authorization:options.headers.Authorization});
     return {ok:true,status:200,body:new ReadableStream({start(stream){stream.enqueue(new TextEncoder().encode(payload));stream.close();}})};
   };
@@ -57,7 +107,8 @@ test('final SSE results stop the stream without a GET, reconnection or later eve
     let requests=0,cancelled=false;
     const final=snapshot(false,null,status);
     final.results=[{name:'Первый',answered_count:2,correct_count:1,score:1},{name:'Второй',answered_count:0,correct_count:0,score:0}];
-    const streamFetch=async()=>{
+    const streamFetch=async(url)=>{
+      if(url.endsWith('/presence')) return {ok:true,status:200};
       requests++;
       return {ok:true,status:200,body:new ReadableStream({start(stream){
         stream.enqueue(new TextEncoder().encode('event: results\ndata: '+JSON.stringify(final)+'\n\nevent: question\ndata: '+JSON.stringify({server_time_ms:12000,current_question:question()})+'\n\n'));

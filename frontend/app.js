@@ -629,7 +629,7 @@ export function mountApp(root, options = {}) {
       && lastGame?.session.id === state.game?.session.id
       && lastGame?.session.status === state.game?.session.status
       && lastGame?.current_question?.id === state.game?.current_question?.id) {
-      updateGameProgress(root, state.game, lastGame);
+      updateGameProgress(root, state.game, lastGame, state.gameAlerts);
       lastGame = state.game;
       tick();
       controller?.syncGameEvents();
@@ -687,6 +687,7 @@ export function mountApp(root, options = {}) {
   };
   controller = createController({...options, joinCode:new URL(root.ownerDocument.defaultView.location.href).searchParams.get('join') || '', onChange: render});
   const tick = () => {
+    controller.syncGamePresence();
     const secondsLeft=gameSeconds(controller.state);
     const timer=root.querySelector('[data-game-timer]');
     if(timer) timer.textContent=secondsLeft>0?secondsLeft+' с':'Время истекло';
@@ -703,6 +704,10 @@ export function mountApp(root, options = {}) {
   const canLeave = () => !controller.state.quizDirty || controller.state.screen!=='quiz' || root.ownerDocument.defaultView.confirm('Есть несохранённые изменения. Выйти из редактора?');
   const beforeUnload = event => { if(controller.state.screen==='quiz' && controller.state.quizDirty) {event.preventDefault();event.returnValue='';} };
   root.ownerDocument.defaultView.addEventListener('beforeunload',beforeUnload);
+  const pageHide = () => controller.suspendGamePresence();
+  const pageShow = () => controller.syncGamePresence();
+  root.ownerDocument.defaultView.addEventListener('pagehide',pageHide);
+  root.ownerDocument.defaultView.addEventListener('pageshow',pageShow);
   root.addEventListener('input', event => {
     const el=event.target,field=el.dataset.quizField;
     if(!field || el.tagName==='SELECT' || ['radio','checkbox'].includes(el.type)) return;
@@ -786,7 +791,7 @@ export function mountApp(root, options = {}) {
     }
   });
   void controller.start();
-  return {controller, canLeave, destroy: () => {clearInterval(interval);controller.resetGameView();root.ownerDocument.defaultView.removeEventListener('beforeunload',beforeUnload);}};
+  return {controller, canLeave, destroy: () => {clearInterval(interval);controller.resetGameView();root.ownerDocument.defaultView.removeEventListener('beforeunload',beforeUnload);root.ownerDocument.defaultView.removeEventListener('pagehide',pageHide);root.ownerDocument.defaultView.removeEventListener('pageshow',pageShow);}};
 }
 if (typeof document !== 'undefined') {
   const root = document.getElementById('app');
