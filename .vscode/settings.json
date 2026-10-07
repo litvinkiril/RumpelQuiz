@@ -1,4 +1,6 @@
 {
+  "clangd.path": "/usr/bin/clangd",
+  "editor.renderValidationDecorations": "on",
   "clangd.arguments": [
     "--background-index",
     "--compile-commands-dir=build-debug",

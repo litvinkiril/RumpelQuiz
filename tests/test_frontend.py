@@ -5,6 +5,7 @@ import pytest
     ('/', 'text/html', 'RumpelQuiz'),
     ('/styles.css', 'text/css', '@media'),
     ('/app.js', 'text/javascript', 'createController'),
+    ('/test.js', 'text/javascript', 'createTestController'),
     ('/game.js', 'text/javascript', 'createGameController'),
     ('/vendor/qrcode.js', 'text/javascript', 'qrcode'),
 ])

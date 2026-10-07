@@ -48,6 +48,9 @@
 #include "quiz/authoring/handlers/save_quiz_handler.hpp"
 #include "quiz/authoring/handlers/get_quiz_handler.hpp"
 #include "media/handlers/upload_image_handler.hpp"
+#include "test/handlers/save_test_handler.hpp"
+#include "test/handlers/get_test_handler.hpp"
+#include "test/handlers/test_play_handler.hpp"
 #include "game/service/game_session_service.hpp"
 
 #include "quiz/info/handlers/list_quiz_sessions_handler.hpp"
@@ -70,6 +73,7 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::FrontendHandler>("handler-frontend-js")
           .Append<RumpelQuiz::FrontendHandler>("handler-frontend-quiz-js")
           .Append<RumpelQuiz::FrontendHandler>("handler-frontend-game-js")
+          .Append<RumpelQuiz::FrontendHandler>("handler-frontend-test-js")
           .Append<RumpelQuiz::FrontendHandler>("handler-frontend-qr-js")
           .Append<RumpelQuiz::Hello>()
           .Append<userver::components::Postgres>("postgres-db-1")
@@ -77,6 +81,16 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::PostboxClientComponent>()
           .Append<RumpelQuiz::S3ClientComponent>()
           .Append<RumpelQuiz::QuizService>()
+          .Append<RumpelQuiz::TestService>()
+          .Append<RumpelQuiz::SaveTestHandler>("handler-create-test")
+          .Append<RumpelQuiz::SaveTestHandler>("handler-update-test")
+          .Append<RumpelQuiz::GetTestHandler>()
+          .Append<RumpelQuiz::GetTestHandler>("handler-list-tests")
+          .Append<RumpelQuiz::TestPlayHandler>()
+          .Append<RumpelQuiz::TestPlayHandler>("handler-test-start")
+          .Append<RumpelQuiz::TestPlayHandler>("handler-test-progress")
+          .Append<RumpelQuiz::TestPlayHandler>("handler-test-answer")
+          .Append<RumpelQuiz::TestPlayHandler>("handler-test-results")
           .Append<RumpelQuiz::QuizInfoService>()
           .Append<RumpelQuiz::ListQuizSessionsHandler>()
           .Append<RumpelQuiz::GetSessionResultsHandler>()

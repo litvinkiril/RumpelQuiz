@@ -36,11 +36,11 @@ enum class Format {
 };
 
 Format DetectFormat(std::string_view data) {
-    if (data.starts_with(std::string_view{"__codex_directive_quoted_backslash__xff__codex_directive_quoted_backslash__xd8__codex_directive_quoted_backslash__xff", 3})) {
+    if (data.starts_with(std::string_view{"\xff\xd8\xff", 3})) {
         return Format::kJpeg;
     }
 
-    if (data.starts_with(std::string_view{"__codex_directive_quoted_backslash__x89PNG__codex_directive_quoted_backslash__r__codex_directive_quoted_backslash__n__codex_directive_quoted_backslash__x1a__codex_directive_quoted_backslash__n", 8})) {
+    if (data.starts_with(std::string_view{"\x89PNG\r\n\x1a\n", 8})) {
         return Format::kPng;
     }
 

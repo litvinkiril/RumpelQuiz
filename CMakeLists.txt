@@ -31,12 +31,13 @@ find_library(CRYPT_LIBRARY crypt REQUIRED)
 # Embed the frontend into the service: one origin, no extra server or npm build.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     frontend/index.html frontend/styles.css frontend/app.js frontend/quiz.js
-    frontend/game.js frontend/vendor/qrcode.js)
+    frontend/game.js frontend/test.js frontend/vendor/qrcode.js)
 file(READ frontend/index.html FRONTEND_HTML)
 file(READ frontend/styles.css FRONTEND_CSS)
 file(READ frontend/app.js FRONTEND_JS)
 file(READ frontend/quiz.js FRONTEND_QUIZ_JS)
 file(READ frontend/game.js FRONTEND_GAME_JS)
+file(READ frontend/test.js FRONTEND_TEST_JS)
 file(READ frontend/vendor/qrcode.js FRONTEND_QR_JS)
 configure_file(src/frontend/assets.hpp.in generated/frontend_assets.hpp @ONLY)
 
@@ -96,6 +97,14 @@ add_library(
     src/quiz/authoring/handlers/get_quiz_handler.cpp
     src/quiz/authoring/handlers/serialization/quiz_json.cpp
     src/quiz/authoring/service/quiz_service.cpp
+    src/test/handlers/save_test_handler.cpp
+    src/test/handlers/get_test_handler.cpp
+    src/test/handlers/test_play_handler.cpp
+    src/test/handlers/serialisation/test_json.cpp
+    src/test/service/test_service.cpp
+    src/test/service/test_validation.cpp
+    src/test/repository/test_repository.cpp
+    src/test/repository/test_play_repository.cpp
     src/quiz/authoring/service/quiz_validation.cpp
     src/quiz/authoring/repository/quiz_repository.cpp
     src/media/handlers/upload_image_handler.cpp
@@ -154,6 +163,7 @@ add_executable(
     tests/unit/auth/crypto_test.cpp
     tests/unit/education/admin_access_test.cpp
     tests/unit/s3client/s3client_test.cpp
+    tests/unit/test/test_test.cpp
     tests/unit/quiz/quiz_test.cpp
     tests/unit/quiz/game_presence_test.cpp
 )

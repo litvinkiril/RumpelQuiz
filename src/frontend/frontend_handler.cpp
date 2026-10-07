@@ -20,6 +20,10 @@ std::string FrontendHandler::HandleRequestThrow(
                      "connect-src 'self'; frame-ancestors 'none'; base-uri "
                      "'none'; form-action 'self'");
   const auto& path = request.GetRequestPath();
+  if (path == "/test.js") {
+    response.SetContentType("text/javascript; charset=utf-8");
+    return std::string{FrontendAssets::kTestJs};
+  }
   if (path == "/game.js") {
     response.SetContentType("text/javascript; charset=utf-8");
     return std::string{FrontendAssets::kGameJs};

@@ -1,6 +1,17 @@
+import {createTestController, renderTests, testQuestionComplete, testSeconds} from './test.js';
 import {newQuiz, newQuestion, newAnswer, questionComplete, quizPayload, renderQuiz} from './quiz.js';
 import {createGameController, renderGame, gameSeconds, updateGameProgress} from './game.js';
 export const messages = {
+  test_access_denied: 'Нет доступа к тесту. Проверьте аккаунт, роль и выбранный вуз.',
+  test_not_found: 'Тест не найден или доступ к нему изменился.',
+  test_revision_conflict: 'Тест изменён в другой вкладке. Скопируйте изменения и откройте его заново.',
+  test_published: 'Тест опубликован. Редактирование больше недоступно.',
+  test_validation_failed: 'Проверьте отмеченные поля. Незавершённый тест можно сохранить в черновик.',
+  test_not_started: 'Сначала начните тест из списка или по ссылке.',
+  test_attempt_finished: 'Прохождение уже завершено или время истекло.',
+  test_question_changed: 'Вопрос уже сменился. Обновите состояние теста.',
+  test_answer_already_saved: 'Этот ответ уже принят. Изменить его нельзя.',
+  invalid_test_id: 'Некорректный идентификатор теста.',
   session_not_found: 'Сессия не найдена или нет доступа к её результатам.',
   session_not_finished: 'Сессия ещё не завершена. Результаты появятся после её закрытия.',
   invalid_session_id: 'Некорректный идентификатор сессии.',
@@ -51,7 +62,7 @@ export function createApi(fetcher = globalThis.fetch) {
     const timeout = setTimeout(() => abort.abort(), 15000);
     try {
       const url = path === 'profile' ? '/v1/user/profile'
-        : /^(education\/|quizzes(?:\/|$)|media\/|game\/)/.test(path) ? '/v1/' + path : '/v1/auth/' + path;
+        : /^(education\/|quizzes(?:\/|$)|tests(?:\/|$)|media\/|game\/)/.test(path) ? '/v1/' + path : '/v1/auth/' + path;
       const multipart = typeof FormData !== 'undefined' && data instanceof FormData;
       const response = await fetcher(url, {
         method: method || (data === undefined ? 'GET' : 'POST'),
@@ -82,7 +93,7 @@ export function validatePassword(password, confirmation) {
   return '';
 }
 const KEY = 'rumpelquiz.auth';
-export function createController({api = createApi(), streamFetch = globalThis.fetch, storage, onChange = () => {}, now = Date.now, makeGameId, origin = globalThis.location?.origin || 'http://localhost:8080', joinCode = ''} = {}) {
+export function createController({api = createApi(), streamFetch = globalThis.fetch, storage, onChange = () => {}, now = Date.now, makeGameId, origin = globalThis.location?.origin || 'http://localhost:8080', joinCode = '', testLink = ''} = {}) {
   let sequence = 0;
   const state = {screen: 'login', email: '', token: '', refreshToken: '', sessionId: '', userId: '', verificationId: '',
     purpose: 'register', resetToken: '', resendAt: 0, busy: false, error: '', success: '', profile: null,
@@ -118,7 +129,7 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
     const current = ++sequence;
     let changed = true;
     let change;
-    if (!background) { state.busy = true; state.error = ''; state.success = ''; emit(); }
+    if (!background) { state.busy = true; state.error = ''; state.errorCode = ''; state.success = ''; emit(); }
     try {
       const result = await work();
       if (current !== sequence) return false;
@@ -128,13 +139,15 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
     } catch (error) {
       if (current === sequence) {
         state.error = error instanceof ApiError ? error.message : 'Не удалось выполнить запрос. Попробуйте снова.';
+        state.errorCode = error.code || '';
+        if (state.screen === 'test') state.testErrors = error.details || [];
         if (state.screen === 'quiz') state.quizErrors = error.details || [];
         if (error.status === 403 && state.screen === 'people') {
           state.people = null; state.nextOffset = null; state.selectedAdmin = null;
         }
         if (error.status === 401 && state.token) {
           state.token = ''; state.refreshToken = ''; state.sessionId = ''; state.userId = '';
-          state.screen = 'login'; state.profile = null; clearEducation();
+          state.screen = 'login'; state.profile = null; clearEducation(); tests.resetTestView();
         }
         if (error.code === 'resend_too_soon') state.resendAt = now() + 60000;
         if (error.code === 'invalid_or_expired_token') { state.resetToken = ''; state.screen = 'forgot'; }
@@ -194,13 +207,16 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
   };
   const setAccount = ({token, refreshToken, sessionId, userId}) => {
     game.resetGameView();
+    tests.resetTestView();
     state.token = token; state.refreshToken = refreshToken; state.sessionId = sessionId;
     state.userId = userId; state.screen = 'account'; state.profile = null;
     clearEducation();
     state.verificationId = ''; state.resetToken = ''; state.resendAt = 0;
   };
   const game = createGameController({state, authorized, run, emit, fail, storage, streamFetch, now, makeId:makeGameId, origin, joinCode});
+  const tests = createTestController({state,authorized,run,emit,fail,now,origin,ApiError,testLink});
   return {
+    ...tests,
     ...game,
     state,
     openQuizzes(create = false) {
@@ -323,11 +339,12 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
       if (!['login', 'register', 'forgot'].includes(screen)) return;
       ++sequence; state.busy = false; state.screen = screen; state.error = ''; state.success = '';
       state.token = ''; state.refreshToken = ''; state.sessionId = ''; state.userId = ''; state.profile = null;
+      tests.resetTestView();
       clearEducation();
       state.verificationId = ''; state.resetToken = ''; state.resendAt = 0; emit();
     },
     async start() {
-      if (state.token) {const ok=await run(currentAccount, setAccount); if(ok) await game.resumeGame(); return ok;}
+      if (state.token) {const ok=await run(currentAccount, setAccount); if(ok) await game.resumeGame(); if(ok) await tests.resumeTestLink(); return ok;}
       emit(); return true;
     },
     openProfile() {
@@ -398,7 +415,7 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
       const error = validatePassword(password);
       if (error) return fail(error);
       state.email = email.trim();
-      return run(async () => authenticate(await api('login', {email: state.email, password})), setAccount).then(async ok=>{if(ok) await game.resumeGame(); return ok;});
+      return run(async () => authenticate(await api('login', {email: state.email, password})), setAccount).then(async ok=>{if(ok) await game.resumeGame(); if(ok) await tests.resumeTestLink(); return ok;});
     },
     register(email, password, confirmation) {
       if (state.busy) return Promise.resolve(false);
@@ -423,7 +440,7 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
           state.resetToken = result.reset_token; state.verificationId = ''; state.screen = 'password';
         });
       }
-      return run(async () => authenticate(await api('verify-email', payload)), setAccount).then(async ok=>{if(ok) await game.resumeGame(); return ok;});
+      return run(async () => authenticate(await api('verify-email', payload)), setAccount).then(async ok=>{if(ok) await game.resumeGame(); if(ok) await tests.resumeTestLink(); return ok;});
     },
     resend() {
       if (state.resendAt > now()) return Promise.resolve(false);
@@ -456,6 +473,7 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
         resendAt: 0, busy: false, error: '', success: 'Вы вышли из аккаунта.'});
       clearEducation();
       game.resetGameView();
+      tests.resetTestView();
       try { storage?.removeItem(KEY); } catch {}
       emit();
       });
@@ -506,6 +524,8 @@ export function renderView(state) {
   let content;
   if (screen === 'game' || screen === 'game-join') {
     content = renderGame(state, notice);
+  } else if (['test','tests','available-tests','test-play','test-results'].includes(screen)) {
+    content = renderTests(state,notice);
   } else if (['quiz','quizzes','quiz-sessions','quiz-results'].includes(screen)) {
     content = renderQuiz(state, notice);
   } else if (screen === 'login' || screen === 'register') {
@@ -612,6 +632,9 @@ export function renderView(state) {
       ${notice}<div class="quiz-symbol" aria-hidden="true">?</div>
       <button type="button" class="primary quiz-button" data-action="create-quiz">＋ Создать квиз</button>
       <button type="button" class="secondary quiz-button" data-action="my-quizzes">Мои квизы →</button>
+      <button type="button" class="primary quiz-button" data-action="create-test">＋ Создать тест</button>
+      <button type="button" class="secondary quiz-button" data-action="my-tests">Мои тесты →</button>
+      <button type="button" class="secondary quiz-button" data-action="available-tests">Пройти тест →</button>
       <button type="button" class="primary quiz-button" data-action="game-join">Присоединиться по коду</button>
       ${state.game?'<button type="button" class="text-button" data-action="game-resume">Вернуться в сессию →</button>':''}
       <p class="hint">Чтобы провести игру, откройте опубликованный квиз в «Мои квизы».</p></div>`;
@@ -640,7 +663,7 @@ export function mountApp(root, options = {}) {
     const focusName = root.ownerDocument.activeElement?.getAttribute('name');
     const focusId = root.ownerDocument.activeElement?.id;
     root.innerHTML = renderView(state);
-    const signedIn = ['account', 'profile', 'university', 'admins', 'people', 'quiz', 'quizzes', 'quiz-sessions', 'quiz-results', 'game', 'game-join'].includes(state.screen);
+    const signedIn = ['account', 'profile', 'university', 'admins', 'people', 'quiz', 'quizzes', 'quiz-sessions', 'quiz-results', 'test', 'tests', 'available-tests', 'test-play', 'test-results', 'game', 'game-join'].includes(state.screen);
     root.ownerDocument.body.classList.toggle('signed-in', signedIn);
     const nav = root.ownerDocument.getElementById('account-nav');
     if (nav) {
@@ -650,11 +673,11 @@ export function mountApp(root, options = {}) {
     }
     root.closest('.workspace')?.setAttribute('aria-label', signedIn ? 'Личный кабинет' : 'Авторизация');
     root.querySelectorAll('[data-avatar]').forEach(img => img.addEventListener('error', event => { event.target.remove(); }));
-    if (lastScreen === state.screen && state.screen !== 'quiz') {
+    if (lastScreen === state.screen && !['quiz','test','test-play'].includes(state.screen)) {
       for (const el of root.querySelectorAll('input')) if (values.has(el.name)) el.value = values.get(el.name);
       const focus = [...root.querySelectorAll('input')].find(el => el.name === focusName);
       focus?.focus();
-    } else if (lastScreen === 'quiz' && state.screen === 'quiz') {
+    } else if (['quiz','test','test-play'].includes(lastScreen) && lastScreen === state.screen) {
       const gameName = root.querySelector('[name="game-name"]');
       if (gameName && values.has('game-name')) gameName.value = values.get('game-name');
       if (focusId) root.ownerDocument.getElementById(focusId)?.focus({preventScroll:true});
@@ -685,7 +708,7 @@ export function mountApp(root, options = {}) {
     tick();
     controller?.syncGameEvents();
   };
-  controller = createController({...options, joinCode:new URL(root.ownerDocument.defaultView.location.href).searchParams.get('join') || '', onChange: render});
+  controller = createController({...options, joinCode:new URL(root.ownerDocument.defaultView.location.href).searchParams.get('join') || '', testLink:new URL(root.ownerDocument.defaultView.location.href).searchParams.get('test') || '', onChange: render});
   const tick = () => {
     controller.syncGamePresence();
     const secondsLeft=gameSeconds(controller.state);
@@ -694,6 +717,14 @@ export function mountApp(root, options = {}) {
     if(timer && secondsLeft===0) {
       root.querySelectorAll('[data-game-answer], [data-action="game-submit"]').forEach(el=>{el.disabled=true;});
     }
+    const testTimer=root.querySelector('[data-test-timer]');
+    if(testTimer) {
+      const left=testSeconds(controller.state);testTimer.textContent=left>0?left+' с':'Время истекло';
+      if(left===0) {
+        root.querySelectorAll('[data-test-choice], [data-action="test-submit"]').forEach(el=>{el.disabled=true;});
+        if(!controller.state.busy && !controller.state.error) void controller.refreshTest();
+      }
+    }
     const button = root.querySelector('[data-action="resend"]');
     if (!button) return;
     const seconds = controller.remaining();
@@ -701,14 +732,24 @@ export function mountApp(root, options = {}) {
     button.textContent = seconds > 0 ? `Новый код через ${seconds} с` : 'Получить новый код';
   };
   const interval = setInterval(tick, 1000);
-  const canLeave = () => !controller.state.quizDirty || controller.state.screen!=='quiz' || root.ownerDocument.defaultView.confirm('Есть несохранённые изменения. Выйти из редактора?');
-  const beforeUnload = event => { if(controller.state.screen==='quiz' && controller.state.quizDirty) {event.preventDefault();event.returnValue='';} };
+  const canLeave = () => !(controller.state.quizDirty && controller.state.screen==='quiz' || controller.state.testDirty && controller.state.screen==='test') || root.ownerDocument.defaultView.confirm('Есть несохранённые изменения. Выйти из редактора?');
+  const beforeUnload = event => { if((controller.state.screen==='quiz' && controller.state.quizDirty || controller.state.screen==='test' && controller.state.testDirty)) {event.preventDefault();event.returnValue='';} };
   root.ownerDocument.defaultView.addEventListener('beforeunload',beforeUnload);
   const pageHide = () => controller.suspendGamePresence();
   const pageShow = () => controller.syncGamePresence();
   root.ownerDocument.defaultView.addEventListener('pagehide',pageHide);
   root.ownerDocument.defaultView.addEventListener('pageshow',pageShow);
   root.addEventListener('input', event => {
+    if(event.target.dataset.testField) {
+      const el=event.target;
+      if(el.tagName==='SELECT' || ['radio','checkbox'].includes(el.type)) return;
+      controller.editTest(el.dataset.testField,el.value,el.dataset.q===undefined?undefined:Number(el.dataset.q),el.dataset.a===undefined?undefined:Number(el.dataset.a));
+      const d=controller.state.testDraft,complete=d.questions.length<100 && d.questions.every(testQuestionComplete);
+      const add=root.querySelector('[data-action="test-add-question"]');if(add) add.disabled=!complete;
+      const hint=root.querySelector('#next-question-hint');if(hint) hint.textContent=complete?'Можно добавить следующий вопрос.':'Заполните вопросы, минимум два ответа и отметьте правильные варианты.';
+      const dirty=root.querySelector('[data-test-dirty]');if(dirty) dirty.textContent='Есть несохранённые изменения';
+      return;
+    }
     const el=event.target,field=el.dataset.quizField;
     if(!field || el.tagName==='SELECT' || ['radio','checkbox'].includes(el.type)) return;
     controller.editQuiz(field,el.value,el.dataset.q===undefined?undefined:Number(el.dataset.q),el.dataset.a===undefined?undefined:Number(el.dataset.a));
@@ -724,6 +765,12 @@ export function mountApp(root, options = {}) {
       controller.chooseGameAnswer(event.target.dataset.gameAnswer,event.target.checked); return;
     }
     const el=event.target,qi=el.dataset.q===undefined?undefined:Number(el.dataset.q),ai=el.dataset.a===undefined?undefined:Number(el.dataset.a);
+    if(el.dataset.testChoice) {controller.chooseTestAnswer(el.dataset.testChoice,el.checked);return;}
+    if(el.hasAttribute('data-test-image')) {void controller.uploadTestImage(el.files?.[0],qi,ai);return;}
+    if(el.dataset.testField && (el.tagName==='SELECT' || ['radio','checkbox'].includes(el.type))) {
+      controller.editTest(el.dataset.testField,['radio','checkbox'].includes(el.type)?el.checked:el.value,qi,ai);
+      if(el.dataset.testField!=='type') render(controller.state);return;
+    }
     if(el.hasAttribute('data-quiz-image')) {void controller.uploadQuizImage(el.files?.[0],qi,ai);return;}
     if(el.dataset.quizField && (el.tagName==='SELECT' || ['radio','checkbox'].includes(el.type))) {
       controller.editQuiz(el.dataset.quizField,['radio','checkbox'].includes(el.type)?el.checked:el.value,qi,ai);
@@ -737,6 +784,8 @@ export function mountApp(root, options = {}) {
     if(form.dataset.form==='game-create') {if(form.reportValidity()) void controller.createGame(new FormData(form).get('game-name'));return;}
     if(form.dataset.form==='game-join') {if(form.reportValidity()) void controller.joinGame(new FormData(form).get('game-code'));return;}
     if(form.dataset.form==='game-origin') {if(form.reportValidity()) controller.setGameOrigin(new FormData(form).get('game-origin'));return;}
+    if(form.dataset.form==='test') {void controller.saveTest('public');return;}
+    if(form.dataset.form==='test-link') {if(form.reportValidity()) void controller.startTest(new FormData(form).get('test-address'));return;}
     if(form.dataset.form==='quiz') {void controller.saveQuiz('ready');return;}
     if (!form.reportValidity()) return;
     const data = Object.fromEntries(new FormData(form));
@@ -754,13 +803,25 @@ export function mountApp(root, options = {}) {
     if (button.dataset.nav) { if(canLeave()) controller.navigate(button.dataset.nav); return; }
     if (controller.state.busy) return;
     const action=button.dataset.action,qi=Number(button.dataset.q),ai=button.dataset.a===undefined?undefined:Number(button.dataset.a);
+    if(['create-quiz','my-quizzes','new-quiz','edit-quiz','create-test','my-tests','new-test','edit-test','available-tests','start-test','game-join','game-resume','profile','logout'].includes(action) && !canLeave()) return;
     if(action==='game-next') void controller.nextGameQuestion();
     if(action==='game-close') void controller.closeGame();
     if(action==='game-join') controller.openGameJoin();
     if(action==='game-resume') void controller.openLastGame();
     if(action==='game-refresh') void controller.refreshGame();
     if(action==='game-submit') void controller.submitGameAnswer();
-    if(['create-quiz','my-quizzes','new-quiz','edit-quiz','profile','logout'].includes(action) && !canLeave()) return;
+    if(action==='create-test') void controller.openTests(true);
+    if(action==='my-tests') void controller.openTests();
+    if(action==='new-test') controller.newTest();
+    if(action==='edit-test') void controller.loadTest(button.dataset.id);
+    if(action==='test-save-draft') void controller.saveTest('draft');
+    if(action==='test-publish-private') void controller.saveTest('private');
+    if(['test-add-question','test-remove-question','test-add-answer','test-remove-answer','test-remove-image'].includes(action)) controller.changeTest(action,qi,ai);
+    if(action==='available-tests') void controller.openAvailableTests();
+    if(action==='start-test') void controller.startTest(button.dataset.id);
+    if(action==='test-submit') void controller.submitTestAnswer();
+    if(action==='test-refresh') void controller.refreshTest();
+    if(action==='test-results') void controller.openTestResults(button.dataset.id);
     if(action==='create-quiz') void controller.openQuizzes(true);
     if(action==='my-quizzes') void controller.openQuizzes();
     if(action==='quiz-actions') controller.openQuizActions(button.dataset.id);

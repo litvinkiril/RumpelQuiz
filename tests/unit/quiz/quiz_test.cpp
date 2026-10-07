@@ -47,4 +47,7 @@ UTEST(Media, RejectsFakeAndOversizedImages) {
   EXPECT_EQ(std::get<UploadImageError>(
                 ValidateImage(std::string_view("\x89PNG\r\n\x1a\n", 8))),
             UploadImageError::kInvalidImage);
+  EXPECT_EQ(std::get<UploadImageError>(
+                ValidateImage(std::string_view("\xff\xd8\xff", 3))),
+            UploadImageError::kInvalidImage);
 }

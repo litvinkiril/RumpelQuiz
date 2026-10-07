@@ -5,6 +5,7 @@ inline constexpr std::string_view kHtml = R"RUMPEL_HTML(@FRONTEND_HTML@)RUMPEL_H
 inline constexpr std::string_view kCss = R"RUMPEL_CSS(@FRONTEND_CSS@)RUMPEL_CSS";
 inline constexpr std::string_view kJs = R"RUMPEL_JS(@FRONTEND_JS@)RUMPEL_JS";
 inline constexpr std::string_view kQuizJs = R"RUMPEL_QUIZ(@FRONTEND_QUIZ_JS@)RUMPEL_QUIZ";
+inline constexpr std::string_view kTestJs = R"RUMPEL_TEST(@FRONTEND_TEST_JS@)RUMPEL_TEST";
 inline constexpr std::string_view kGameJs = R"RUMPEL_GAME(@FRONTEND_GAME_JS@)RUMPEL_GAME";
 inline constexpr std::string_view kQrJs = R"RUMPEL_QR(@FRONTEND_QR_JS@)RUMPEL_QR";
 }

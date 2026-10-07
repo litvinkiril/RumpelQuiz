@@ -209,6 +209,10 @@ session; reloading at the new-password step requires restarting recovery.
 
 ## Test commands
 
+Standalone tests (authoring, public/private publication, student progress and
+results): see [docs/tests.md](docs/tests.md). Existing databases require the
+additive migration `postgresql/migrations/007_tests.sql`.
+
     make test-debug
     make test-ui
 

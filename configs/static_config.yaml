@@ -182,6 +182,8 @@ components_manager:
 
         education-service: {}
 
+        test-service: {}
+
         game-session-service: {}
         game-events: {}
         handler-frontend-game-js:
@@ -384,3 +386,98 @@ components_manager:
             response_data_size_log_limit: 0
             auth:
                 types: [jwt]
+
+        handler-create-test:
+            path: /v1/tests
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 4194304
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-update-test:
+            path: /v1/tests/{test_id}
+            method: PUT
+            task_processor: main-task-processor
+            max_request_size: 4194304
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-get-test:
+            path: /v1/tests/{test_id}
+            method: GET
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-list-tests:
+            path: /v1/tests
+            method: GET
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-available-tests:
+            path: /v1/tests/available
+            method: GET
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-test-start:
+            path: /v1/tests/{test_id}/start
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-test-progress:
+            path: /v1/tests/{test_id}/progress
+            method: GET
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-test-answer:
+            path: /v1/tests/{test_id}/answers
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-test-results:
+            path: /v1/tests/{test_id}/results
+            method: GET
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-frontend-test-js:
+            path: /test.js
+            method: GET
+            task_processor: main-task-processor

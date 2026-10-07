@@ -27,6 +27,13 @@ class QuizService final : public userver::components::ComponentBase {
                           const std::optional<boost::uuids::uuid>& quiz_id,
                           const SaveQuizRequest& input) const;
 
+  userver::formats::json::Value ReadQuiz(
+      const boost::uuids::uuid& user_id,
+      const boost::uuids::uuid& quiz_id) const;
+
+  userver::formats::json::Value ListQuizzes(
+      const boost::uuids::uuid& user_id) const;
+
  private:
   userver::storages::postgres::ClusterPtr pg_;
 
@@ -34,13 +41,6 @@ class QuizService final : public userver::components::ComponentBase {
   QuizRepository quiz_repository_;
   QuizValidation quiz_validation_;
   const S3ClientBase& s3_client_;
-
- public:
-  userver::formats::json::Value ReadQuiz(
-      const boost::uuids::uuid& user_id,
-      const boost::uuids::uuid& quiz_id) const;
-  userver::formats::json::Value ListQuizzes(
-      const boost::uuids::uuid& user_id) const;
 };
 
 }  // namespace RumpelQuiz
