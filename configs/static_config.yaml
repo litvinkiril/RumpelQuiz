@@ -477,6 +477,68 @@ components_manager:
             auth:
                 types: [jwt]
 
+        catalog-service: {}
+
+        handler-search-tests:
+            path: /v1/tests/search
+            method: GET
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-add-test-favourite:
+            path: /v1/tests/{test_id}/favourite
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-remove-test-favourite:
+            path: /v1/tests/{test_id}/favourite
+            method: DELETE
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-search-quizzes:
+            path: /v1/quizzes/search
+            method: GET
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-add-quiz-favourite:
+            path: /v1/quizzes/{quiz_id}/favourite
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-remove-quiz-favourite:
+            path: /v1/quizzes/{quiz_id}/favourite
+            method: DELETE
+            task_processor: main-task-processor
+            max_request_size: 4096
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
         handler-frontend-test-js:
             path: /test.js
             method: GET

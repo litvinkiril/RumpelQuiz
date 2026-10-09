@@ -55,6 +55,13 @@
 
 #include "quiz/info/handlers/list_quiz_sessions_handler.hpp"
 #include "quiz/info/handlers/get_session_results_handler.hpp"
+#include "catalog/service/catalog_service.hpp"
+#include "catalog/handlers/search_tests_handler.hpp"
+#include "catalog/handlers/add_test_favourite_handler.hpp"
+#include "catalog/handlers/remove_test_favourite_handler.hpp"
+#include "catalog/handlers/search_quizzes_handler.hpp"
+#include "catalog/handlers/add_quiz_favourite_handler.hpp"
+#include "catalog/handlers/remove_quiz_favourite_handler.hpp"
 
 int main(int argc, char* argv[]) {
   userver::server::handlers::auth::RegisterAuthCheckerFactory<
@@ -129,6 +136,13 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::GameEvents>()
           .Append<RumpelQuiz::GameEventsHandler>()
           .Append<RumpelQuiz::GameSessionService>()
+          .Append<RumpelQuiz::CatalogService>()
+          .Append<RumpelQuiz::SearchTestHandler>()
+          .Append<RumpelQuiz::AddTestFavouriteHandler>()
+          .Append<RumpelQuiz::RemoveTestFavouriteHandler>()
+          .Append<RumpelQuiz::SearchQuizHandler>()
+          .Append<RumpelQuiz::AddQuizFavouriteHandler>()
+          .Append<RumpelQuiz::RemoveQuizFavouriteHandler>()
           .Append<RumpelQuiz::GamePlayHandler>()
           .Append<RumpelQuiz::GamePlayHandler>("handler-game-join")
           .Append<RumpelQuiz::GamePlayHandler>("handler-game-answer")

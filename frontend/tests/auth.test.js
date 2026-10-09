@@ -39,11 +39,12 @@ test('registration → code → account; secrets are not persisted', async () =>
   assert.equal(saved.code, undefined);
 });
 test('login loads protected account and logout clears credentials', async () => {
-  const {controller:c,calls} = setup([{access_token:'jwt'}, {user_id:'u1'}]);
+  const {controller:c,calls} = setup([{access_token:'jwt'}, {user_id:'u1'}, {success:true,university_position:[{role:'student'}]}]);
   await c.login('user@example.com', 'password');
   assert.deepEqual(calls[1], ['me', undefined, 'jwt']);
   await c.logout();
-  assert.deepEqual(calls[2], ['logout', {}, 'jwt']);
+  assert.deepEqual(calls[2], ['profile', undefined, 'jwt']);
+  assert.deepEqual(calls[3], ['logout', {}, 'jwt']);
   assert.equal(c.state.screen,'login');
   assert.equal(c.state.token,'');
   assert.equal(c.state.userId,'');

@@ -1,5 +1,5 @@
 import {createTestController, renderTests, testQuestionComplete, testSeconds} from './test.js';
-import {newQuiz, newQuestion, newAnswer, questionComplete, quizPayload, renderQuiz} from './quiz.js';
+import {newQuiz, newQuestion, newAnswer, questionComplete, quizPayload, renderQuiz, renderAccount} from './quiz.js';
 import {createGameController, renderGame, gameSeconds, updateGameProgress} from './game.js';
 export const messages = {
   test_access_denied: 'Нет доступа к тесту. Проверьте аккаунт, роль и выбранный вуз.',
@@ -93,10 +93,24 @@ export function validatePassword(password, confirmation) {
   return '';
 }
 const KEY = 'rumpelquiz.auth';
+const profileRoles = profile => [...new Set(profile.university_position
+  .filter(p => !p.status || p.status === 'active').map(p => p.role)
+  .filter(role => ['student', 'teacher', 'admin'].includes(role)))];
+async function readAccountRoles(read) {
+  try {
+    const profile = await read();
+    if (profile?.success !== true || !Array.isArray(profile.university_position))
+      throw new ApiError('Не удалось загрузить роль. Попробуйте ещё раз.');
+    return {accountRoles: profileRoles(profile), accountRolesError: ''};
+  } catch (error) {
+    if (error.status === 401) throw error;
+    return {accountRoles: null, accountRolesError: 'Не удалось загрузить роль. Попробуйте ещё раз.'};
+  }
+}
 export function createController({api = createApi(), streamFetch = globalThis.fetch, storage, onChange = () => {}, now = Date.now, makeGameId, origin = globalThis.location?.origin || 'http://localhost:8080', joinCode = '', testLink = ''} = {}) {
   let sequence = 0;
   const state = {screen: 'login', email: '', token: '', refreshToken: '', sessionId: '', userId: '', verificationId: '',
-    purpose: 'register', resetToken: '', resendAt: 0, busy: false, error: '', success: '', profile: null,
+    purpose: 'register', resetToken: '', resendAt: 0, busy: false, error: '', success: '', profile: null, accountRoles: null, accountRolesError: '',
     selectedUniversity: null, admins: null, selectedAdmin: null, people: null, peopleQuery: '', nextOffset: null};
   const clearPeople = () => { state.people = null; state.peopleQuery = ''; state.nextOffset = null; };
   const clearEducation = () => {
@@ -147,7 +161,7 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
         }
         if (error.status === 401 && state.token) {
           state.token = ''; state.refreshToken = ''; state.sessionId = ''; state.userId = '';
-          state.screen = 'login'; state.profile = null; clearEducation(); tests.resetTestView();
+          state.screen = 'login'; state.profile = null; state.accountRoles = null; state.accountRolesError = ''; clearEducation(); tests.resetTestView();
         }
         if (error.code === 'resend_too_soon') state.resendAt = now() + 60000;
         if (error.code === 'invalid_or_expired_token') { state.resetToken = ''; state.screen = 'forgot'; }
@@ -170,8 +184,9 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
     if (!result.access_token) throw new ApiError('Сервер не вернул токен входа.');
     const user = await api('me', undefined, result.access_token);
     if (!user.user_id) throw new ApiError('Не удалось загрузить аккаунт.');
+    const roles = await readAccountRoles(() => api('profile', undefined, result.access_token));
     return {token: result.access_token, refreshToken: result.refresh_token || '',
-      sessionId: result.session_id || '', userId: user.user_id};
+      sessionId: result.session_id || '', userId: user.user_id, ...roles};
   };
   let refreshPending = null;
   const authorized = async (path, data, method) => {
@@ -203,13 +218,15 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
   const currentAccount = async () => {
     const user = await authorized('me');
     if (!user.user_id) throw new ApiError('Не удалось загрузить аккаунт.');
-    return {token: state.token, refreshToken: state.refreshToken, sessionId: state.sessionId, userId: user.user_id};
+    const roles = await readAccountRoles(() => authorized('profile'));
+    return {token: state.token, refreshToken: state.refreshToken, sessionId: state.sessionId, userId: user.user_id, ...roles};
   };
-  const setAccount = ({token, refreshToken, sessionId, userId}) => {
+  const setAccount = ({token, refreshToken, sessionId, userId, accountRoles, accountRolesError}) => {
     game.resetGameView();
     tests.resetTestView();
     state.token = token; state.refreshToken = refreshToken; state.sessionId = sessionId;
     state.userId = userId; state.screen = 'account'; state.profile = null;
+    state.accountRoles = accountRoles; state.accountRolesError = accountRolesError;
     clearEducation();
     state.verificationId = ''; state.resetToken = ''; state.resendAt = 0;
   };
@@ -219,6 +236,10 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
     ...tests,
     ...game,
     state,
+    reloadAccountRoles() {
+      if (state.busy || !state.token || state.screen !== 'account') return Promise.resolve(false);
+      return run(() => readAccountRoles(() => authorized('profile')), result => {Object.assign(state, result);});
+    },
     openQuizzes(create = false) {
       if (!state.token || state.busy) return Promise.resolve(false);
       return run(async () => {
@@ -339,6 +360,7 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
       if (!['login', 'register', 'forgot'].includes(screen)) return;
       ++sequence; state.busy = false; state.screen = screen; state.error = ''; state.success = '';
       state.token = ''; state.refreshToken = ''; state.sessionId = ''; state.userId = ''; state.profile = null;
+      state.accountRoles = null; state.accountRolesError = '';
       tests.resetTestView();
       clearEducation();
       state.verificationId = ''; state.resetToken = ''; state.resendAt = 0; emit();
@@ -355,6 +377,7 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
         if (!result || result.success !== true || !Array.isArray(result.university_position))
           throw new ApiError('Не удалось загрузить профиль. Попробуйте ещё раз.');
         state.profile = result;
+        state.accountRoles = profileRoles(result); state.accountRolesError = '';
       });
     },
     openUniversity(universityId) {
@@ -470,7 +493,7 @@ export function createController({api = createApi(), streamFetch = globalThis.fe
         catch (error) { if (error.status !== 401) throw error; }
       }, () => {
       Object.assign(state, {screen: 'login', token: '', refreshToken: '', sessionId: '', userId: '', verificationId: '', resetToken: '', profile: null,
-        resendAt: 0, busy: false, error: '', success: 'Вы вышли из аккаунта.'});
+        accountRoles: null, accountRolesError: '', resendAt: 0, busy: false, error: '', success: 'Вы вышли из аккаунта.'});
       clearEducation();
       game.resetGameView();
       tests.resetTestView();
@@ -626,18 +649,7 @@ export function renderView(state) {
         <p class="contact-label">Электронная почта</p><a class="contact-email" href="mailto:${escapeHtml(encodeURIComponent(state.selectedAdmin.email))}">${escapeHtml(state.selectedAdmin.email)}</a>
         </dialog>` : ''}`;
   } else {
-    content = `<div class="quiz-welcome"><p class="step-label">Всё начинается с вопроса</p>
-      <h2 tabindex="-1">Готовы проверить<br>свои знания?</h2>
-      <p class="subtitle">Создайте свой квиз и сохраните вопросы.<br>Всё начинается с любопытства.</p>
-      ${notice}<div class="quiz-symbol" aria-hidden="true">?</div>
-      <button type="button" class="primary quiz-button" data-action="create-quiz">＋ Создать квиз</button>
-      <button type="button" class="secondary quiz-button" data-action="my-quizzes">Мои квизы →</button>
-      <button type="button" class="primary quiz-button" data-action="create-test">＋ Создать тест</button>
-      <button type="button" class="secondary quiz-button" data-action="my-tests">Мои тесты →</button>
-      <button type="button" class="secondary quiz-button" data-action="available-tests">Пройти тест →</button>
-      <button type="button" class="primary quiz-button" data-action="game-join">Присоединиться по коду</button>
-      ${state.game?'<button type="button" class="text-button" data-action="game-resume">Вернуться в сессию →</button>':''}
-      <p class="hint">Чтобы провести игру, откройте опубликованный квиз в «Мои квизы».</p></div>`;
+    content = renderAccount(state, notice);
   }
   return `<div class="auth-card" aria-busy="${busy}">${content}</div>`;
 }
@@ -803,6 +815,7 @@ export function mountApp(root, options = {}) {
     if (button.dataset.nav) { if(canLeave()) controller.navigate(button.dataset.nav); return; }
     if (controller.state.busy) return;
     const action=button.dataset.action,qi=Number(button.dataset.q),ai=button.dataset.a===undefined?undefined:Number(button.dataset.a);
+    if(action==='account-roles') void controller.reloadAccountRoles();
     if(['create-quiz','my-quizzes','new-quiz','edit-quiz','create-test','my-tests','new-test','edit-test','available-tests','start-test','game-join','game-resume','profile','logout'].includes(action) && !canLeave()) return;
     if(action==='game-next') void controller.nextGameQuestion();
     if(action==='game-close') void controller.closeGame();

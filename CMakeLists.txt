@@ -105,6 +105,14 @@ add_library(
     src/test/service/test_validation.cpp
     src/test/repository/test_repository.cpp
     src/test/repository/test_play_repository.cpp
+    src/catalog/handlers/search_tests_handler.cpp
+    src/catalog/handlers/add_test_favourite_handler.cpp
+    src/catalog/handlers/remove_test_favourite_handler.cpp
+    src/catalog/handlers/search_quizzes_handler.cpp
+    src/catalog/handlers/add_quiz_favourite_handler.cpp
+    src/catalog/handlers/remove_quiz_favourite_handler.cpp
+    src/catalog/service/catalog_service.cpp
+    src/catalog/repository/catalog_repository.cpp
     src/quiz/authoring/service/quiz_validation.cpp
     src/quiz/authoring/repository/quiz_repository.cpp
     src/media/handlers/upload_image_handler.cpp

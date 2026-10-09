@@ -1,6 +1,23 @@
 import {renderResults} from './game.js';
 
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export function renderAccount(state, notice) {
+ const roles=state.accountRoles;
+ const author=roles?.some(role=>['teacher','admin'].includes(role));
+ const student=!author && roles?.includes('student');
+ const button=(action,label,primary=false)=>`<button type="button" class="${primary?'primary':'secondary'} quiz-button" data-action="${action}">${label}</button>`;
+ let actions;
+ if(author) actions=button('create-quiz','Создать квиз',true)+button('my-quizzes','Посмотреть квизы')
+  +button('create-test','Создать тест',true)+button('my-tests','Посмотреть тесты');
+ else if(student) actions=button('game-join','Подключиться к сессии',true)+button('available-tests','Посмотреть назначенные тесты');
+ else if(state.busy) actions='<p class="subtitle" role="status">Загружаем роль…</p>';
+ else if(state.accountRolesError || !Array.isArray(roles)) actions=`<p class="notice error" role="alert">${escape(state.accountRolesError || 'Не удалось определить роль. Обновите данные аккаунта.')}</p>${button('account-roles','Повторить загрузку')}`;
+ else actions='<p class="subtitle">Роль в учебном заведении пока не назначена.</p>';
+ return `<div class="quiz-welcome"><p class="step-label">${author?'Мастерская преподавателя':'Личный кабинет'}</p>
+  <h2 tabindex="-1">${author?'Квизы и тесты':student?'Готовы проверить<br>свои знания?':'Добро пожаловать'}</h2>
+  ${author?'<p class="subtitle">Создавайте задания и открывайте сохранённые квизы и тесты.</p>':student?'<p class="subtitle">Подключайтесь к сессии или открывайте назначенные тесты.</p>':''}
+  ${notice}<div class="quiz-symbol" aria-hidden="true">?</div>${actions}</div>`;
+}
 export const newAnswer = () => ({text:'',is_correct:false,image_id:null,image_url:''});
 function errorLabel(path) {
  const question=/^questions\[(\d+)\]/.exec(path),answer=/\.answers\[(\d+)\]/.exec(path);

@@ -38,4 +38,4 @@ test('profile renders roles, null avatar, escaped data and empty memberships',()
  assert.ok(!malicious.includes('<script>'));assert.ok(!malicious.includes('<img'));assert.match(malicious,/Пока нет привязок/);
  assert.equal(safeAvatarUrl('javascript:alert(1)'),'');
 });
-test('home offers joining a live session',()=>{assert.match(renderView({screen:'account'}),/data-action="game-join"/);});
+test('student home offers joining a live session',()=>{assert.match(renderView({screen:'account',accountRoles:['student']}),/data-action="game-join"/);});

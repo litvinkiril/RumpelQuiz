@@ -18,9 +18,9 @@ const expired = () => new ApiError('expired', 401);
 const pair = {access_token: 'new-access', refresh_token: 'new-refresh', session_id: 's1'};
 
 test('restored session rotates expired access and persists the new pair', async () => {
-  const {controller: c, calls, saved} = setup([expired(), pair, {user_id: 'u1'}]);
+  const {controller: c, calls, saved} = setup([expired(), pair, {user_id: 'u1'}, {success: true, university_position: [{role: 'student'}]}]);
   assert.equal(await c.start(), true);
-  assert.deepEqual(calls, [['me', undefined, 'expired'], ['refresh', {session_id: 's1', refresh_token: 'old-refresh'}], ['me', undefined, 'new-access']]);
+  assert.deepEqual(calls, [['me', undefined, 'expired'], ['refresh', {session_id: 's1', refresh_token: 'old-refresh'}], ['me', undefined, 'new-access'], ['profile', undefined, 'new-access']]);
   assert.equal(saved().refreshToken, 'new-refresh');
   assert.equal(c.state.screen, 'account');
 });
