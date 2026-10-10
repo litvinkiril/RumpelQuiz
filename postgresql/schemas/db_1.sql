@@ -91,6 +91,7 @@ CREATE TABLE users.profiles (
     last_name TEXT,
     middle_name TEXT,
     avatar_url TEXT,
+    description TEXT,
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

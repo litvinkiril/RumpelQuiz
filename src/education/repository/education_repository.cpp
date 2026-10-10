@@ -135,6 +135,63 @@ bool EducationRepository::HasActiveAdminMembership(
     return result.AsSingleRow<bool>();
 }
 
+bool EducationRepository::AddMembership(
+    userver::storages::postgres::Transaction& transaction,
+    const boost::uuids::uuid& user_id,
+    const boost::uuids::uuid& university_id,
+    std::string_view role,
+    std::optional<boost::uuids::uuid> facultet_id
+) const {
+    std::optional<std::string> admin_scope;
+    if (role == "admin") {
+        admin_scope = facultet_id ? "faculties" : "university";
+    }
+
+    const auto result = transaction.Execute(
+        R"(
+            INSERT INTO education.memberships (
+                user_id,
+                university_id,
+                role,
+                status,
+                admin_scope
+            )
+            VALUES ($1, $2, $3, 'active', $4)
+            ON CONFLICT (user_id, university_id, role) DO NOTHING
+            RETURNING id
+        )",
+        user_id,
+        university_id,
+        role,
+        admin_scope
+    );
+
+    if (result.IsEmpty()) {
+        return false;
+    }
+
+    if (facultet_id) {
+        const auto membership_id =
+            result[0]["id"].As<boost::uuids::uuid>();
+
+        transaction.Execute(
+            R"(
+                INSERT INTO education.admin_faculties (
+                    membership_id,
+                    faculty_id,
+                    university_id
+                )
+                VALUES ($1, $2, $3)
+            )",
+            membership_id,
+            *facultet_id,
+            university_id
+        );
+    }
+
+    return true;
+}
+
 std::vector<UniversityAdmin>
 EducationRepository::GetActiveAdminsByUniversityId(
     userver::storages::postgres::Transaction& transaction,

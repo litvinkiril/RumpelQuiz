@@ -77,6 +77,10 @@ GetProfileHandler::HandleRequestJsonThrow(
             ? userver::formats::json::ValueBuilder{*profile.avatar_url}
             : userver::formats::json::ValueBuilder{};
 
+        response["description"] = profile.description
+            ? userver::formats::json::ValueBuilder{*profile.description}
+            : userver::formats::json::ValueBuilder{};
+
         userver::formats::json::ValueBuilder positions(
             userver::formats::json::Type::kArray);
 

@@ -62,6 +62,8 @@
 #include "catalog/handlers/search_quizzes_handler.hpp"
 #include "catalog/handlers/add_quiz_favourite_handler.hpp"
 #include "catalog/handlers/remove_quiz_favourite_handler.hpp"
+#include "user/creation/handlers/create_user_handler.hpp"
+#include "user/creation/service/user_creation_service.hpp"
 
 int main(int argc, char* argv[]) {
   userver::server::handlers::auth::RegisterAuthCheckerFactory<
@@ -144,6 +146,8 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::AddQuizFavouriteHandler>()
           .Append<RumpelQuiz::RemoveQuizFavouriteHandler>()
           .Append<RumpelQuiz::GamePlayHandler>()
+          .Append<RumpelQuiz::UserCreationService>()
+          .Append<RumpelQuiz::CreateUserHandler>()
           .Append<RumpelQuiz::GamePlayHandler>("handler-game-join")
           .Append<RumpelQuiz::GamePlayHandler>("handler-game-answer")
           .Append<RumpelQuiz::GamePlayHandler>("handler-game-presence");

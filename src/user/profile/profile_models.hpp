@@ -17,6 +17,7 @@ struct UserWithProfile {
     std::optional<std::string> last_name;
     std::optional<std::string> middle_name;
     std::optional<std::string> avatar_url;
+    std::optional<std::string> description;
 };
 
 struct UserProfile {
@@ -25,6 +26,7 @@ struct UserProfile {
     std::optional<std::string> last_name;
     std::optional<std::string> middle_name;
     std::optional<std::string> avatar_url;
+    std::optional<std::string> description;
 };
 struct FullProfile {
     std::string email;
@@ -32,6 +34,7 @@ struct FullProfile {
     std::optional<std::string> last_name;
     std::optional<std::string> middle_name;
     std::optional<std::string> avatar_url;
+    std::optional<std::string> description;
     std::vector<Position> university_position;
 };
 enum class GetProfileError {

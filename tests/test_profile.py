@@ -58,6 +58,7 @@ async def test_profile_without_memberships(service_client, pgsql):
         'email': f'{user_id}@example.invalid',
         'first_name': None, 'last_name': None,
         'middle_name': None, 'avatar_url': None,
+        'description': None,
         'university_position': [],
     }
 
@@ -67,8 +68,8 @@ async def test_profile_memberships_and_groups(service_client, pgsql):
     user_id = create_user(cursor)
     cursor.execute(
         "INSERT INTO users.profiles "
-        "(user_id, first_name, last_name, middle_name, avatar_url) "
-        "VALUES (%s, 'Ivan', 'Ivanov', 'Ivanovich', '/avatar.png')",
+        "(user_id, first_name, last_name, middle_name, avatar_url, description) "
+        "VALUES (%s, 'Ivan', 'Ivanov', 'Ivanovich', '/avatar.png', 'Math teacher')",
         (user_id,),
     )
     # Two students with groups check that all membership IDs reach the query.
@@ -131,6 +132,7 @@ async def test_profile_memberships_and_groups(service_client, pgsql):
         'success': True, 'email': f'{user_id}@example.invalid',
         'first_name': 'Ivan', 'last_name': 'Ivanov',
         'middle_name': 'Ivanovich', 'avatar_url': '/avatar.png',
+        'description': 'Math teacher',
     }
     key = lambda item: (item['university_name'], item['role'])
     assert sorted(positions, key=key) == sorted(expected, key=key)

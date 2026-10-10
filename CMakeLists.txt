@@ -128,6 +128,8 @@ add_library(
     src/game/handlers/next_game_question_handler.cpp
     src/game/handlers/close_game_session_handler.cpp
     src/game/handlers/game_events_handler.cpp
+    src/user/creation/handlers/create_user_handler.cpp
+    src/user/creation/service/user_creation_service.cpp
 )
 target_include_directories(
     ${PROJECT_NAME}_objs

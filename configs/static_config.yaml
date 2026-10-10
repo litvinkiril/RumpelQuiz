@@ -539,6 +539,18 @@ components_manager:
             auth:
                 types: [jwt]
 
+        user-creation-service: {}
+
+        handler-create-user:
+            path: /v1/user/create
+            method: POST
+            task_processor: main-task-processor
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types:
+                  - jwt
+
         handler-frontend-test-js:
             path: /test.js
             method: GET

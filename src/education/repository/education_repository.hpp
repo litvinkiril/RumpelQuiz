@@ -44,6 +44,14 @@ public:
         const boost::uuids::uuid& university_id
     ) const;
 
+    bool AddMembership(
+        userver::storages::postgres::Transaction& transaction,
+        const boost::uuids::uuid& user_id,
+        const boost::uuids::uuid& university_id,
+        std::string_view role,
+        std::optional<boost::uuids::uuid> facultet_id = std::nullopt
+    ) const;
+
 
     std::vector<UniversityAdmin> GetActiveAdminsByUniversityId(
         userver::storages::postgres::Transaction& transaction,

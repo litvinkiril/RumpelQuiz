@@ -20,7 +20,8 @@ class ProfileRepository {
       std::string_view first_name,
       std::string_view last_name,
       std::optional<std::string_view> middle_name,
-      std::optional<std::string_view> avatar_url) const;
+      std::optional<std::string_view> avatar_url,
+      std::optional<std::string_view> description) const;
 
   std::optional<UserWithProfile> FindUserWithProfileById(
       userver::storages::postgres::Transaction& transaction,
@@ -32,7 +33,8 @@ class ProfileRepository {
     std::string_view first_name,
     std::string_view last_name,
     std::optional<std::string_view> middle_name,
-    std::optional<std::string_view> avatar_url) const;
+    std::optional<std::string_view> avatar_url,
+    std::optional<std::string_view> description) const;
   
   void Delete(userver::storages::postgres::Transaction& transaction,
               const boost::uuids::uuid& user_id) const;

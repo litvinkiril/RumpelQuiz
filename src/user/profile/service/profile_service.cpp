@@ -42,6 +42,7 @@ GetProfileResult ProfileService::GetProfile(const boost::uuids::uuid& user_id) c
         user_profile->last_name,
         user_profile->middle_name,
         user_profile->avatar_url,
+        user_profile->description,
         std::move(university_position)
     };
 }

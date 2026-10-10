@@ -12,23 +12,26 @@ void ProfileRepository::Create(
     std::string_view first_name,
     std::string_view last_name,
     std::optional<std::string_view> middle_name,
-    std::optional<std::string_view> avatar_url) const {
-        const auto result = transaction.Execute(
+    std::optional<std::string_view> avatar_url,
+    std::optional<std::string_view> description) const {
+    const auto result = transaction.Execute(
         R"(
             INSERT INTO users.profiles (
                 user_id,
                 first_name,
                 last_name,
                 middle_name,
-                avatar_url
+                avatar_url,
+                description
             )
-            VALUES ($1, $2, $3, $4, $5)
+            VALUES ($1, $2, $3, $4, $5, $6)
         )",
         user_id,
         first_name,
         last_name,
         middle_name,
-        avatar_url
+        avatar_url,
+        description
     );
 
     if (result.RowsAffected() != 1) {
@@ -50,7 +53,8 @@ ProfileRepository::FindUserWithProfileById(
                 p.first_name,
                 p.last_name,
                 p.middle_name,
-                p.avatar_url
+                p.avatar_url,
+                p.description
             FROM auth.users AS u
             LEFT JOIN users.profiles AS p
                 ON p.user_id = u.id
@@ -75,7 +79,8 @@ void ProfileRepository::Update(
     std::string_view first_name,
     std::string_view last_name,
     std::optional<std::string_view> middle_name,
-    std::optional<std::string_view> avatar_url) const {
+    std::optional<std::string_view> avatar_url,
+    std::optional<std::string_view> description) const {
 
     const auto result = transaction.Execute(
         R"(
@@ -85,6 +90,7 @@ void ProfileRepository::Update(
                 last_name = $3,
                 middle_name = $4,
                 avatar_url = $5,
+                description = $6,
                 updated_at = NOW()
             WHERE user_id = $1
         )",
@@ -92,7 +98,8 @@ void ProfileRepository::Update(
         first_name,
         last_name,
         middle_name,
-        avatar_url
+        avatar_url,
+        description
     );
 
     if (result.RowsAffected() != 1) {
