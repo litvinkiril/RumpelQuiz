@@ -68,6 +68,12 @@ components_manager:
             task_processor: main-task-processor
             response_data_size_log_limit: 0
 
+        handler-frontend-assets:
+            path: /assets/*
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+
         handler-ping:
             path: /ping
             method: GET

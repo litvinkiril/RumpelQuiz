@@ -1,25 +1,74 @@
 <!doctype html>
 <html lang="ru">
-<head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#5339d6">
-<meta name="description" content="RumpelQuiz — регистрация, вход и управление доступом к аккаунту.">
-<title>RumpelQuiz — ваш аккаунт</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%235339d6'/%3E%3Ctext x='10' y='29' font-size='28' fill='white' font-family='sans-serif'%3ER%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="/styles.css">
-<script type="module" src="/app.js"></script>
-</head>
-<body>
-<header class="header"><a class="brand" href="#login" aria-label="RumpelQuiz — на главную"><span class="brand-mark">R<span>✦</span></span>Rumpel<span class="brand-quiz">Quiz</span></a><span class="header-note">Хорошая игра начинается со знакомства.</span><span class="header-label">ВАШ АККАУНТ <span aria-hidden="true">↗</span></span><nav id="account-nav" class="account-nav" aria-label="Личный кабинет" hidden><button type="button" class="text-button" data-action="profile">Профиль</button><button type="button" class="text-button" data-action="logout">Выйти</button></nav></header>
-<main class="layout">
-<section class="intro" aria-label="Добро пожаловать">
-<div class="eyebrow"><span></span> МЕСТО ДЛЯ ЛЮБОПЫТНЫХ</div>
-<h1>Вопросы<br>объединяют<span class="accent">.</span></h1>
-<p class="intro-copy">А всё начинается с вас.<br>Создайте аккаунт или возвращайтесь в свой.</p>
-<div class="art" aria-hidden="true"><div class="art-orbit orbit-one"></div><div class="art-orbit orbit-two"></div><div class="question-card"><span class="card-dots">● ● ●</span><span class="big-question">?</span><span class="card-caption">ВСЁ НАЧИНАЕТСЯ С ВОПРОСА</span></div><span class="spark spark-one">✦</span><span class="spark spark-two">✦</span><div class="answer-chip"><span>✓</span> Вы в правильном месте</div><div class="mini-card">R<span>Q</span></div></div>
-<div class="intro-bottom"><span class="tiny-star">✳</span><p>Один аккаунт.<br><strong>Ваш следующий шаг.</strong></p><span class="intro-arrow" aria-hidden="true">↗</span></div>
-</section>
-<section class="workspace" aria-label="Авторизация"><div id="app" aria-live="polite"><div class="auth-card"><p>Загружаем ваш аккаунт…</p></div></div><noscript>Для входа включите JavaScript в настройках браузера.</noscript><p class="workspace-foot"><span aria-hidden="true">◇</span> Ваш пароль хранится только в виде хеша.</p></section>
-</main>
-<footer class="footer"><span>© RumpelQuiz, 2026</span><span>С любопытством к каждому вопросу <span aria-hidden="true">✦</span></span></footer>
-</body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#5339d6" />
+    <meta
+      name="description"
+      content="RumpelQuiz — создавайте, запускайте и проходите интерактивные квизы и тесты."
+    />
+    <title>RumpelQuiz — квизы и тесты</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='12' fill='%235339d6'/%3E%3Ctext x='10' y='29' font-size='28' fill='white' font-family='sans-serif'%3ER%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <header class="header">
+      <a class="brand" href="#login" aria-label="RumpelQuiz — на главную"
+        ><span class="brand-mark">R<span>✦</span></span
+        >Rumpel<span class="brand-quiz">Quiz</span></a
+      ><span class="header-note">Хорошая игра начинается со знакомства.</span
+      ><span class="header-label">ВАШ АККАУНТ <span aria-hidden="true">↗</span></span>
+      <nav id="account-nav" class="account-nav" aria-label="Главное меню" hidden>
+        <button type="button" class="text-button" data-nav="test-section">Тесты</button
+        ><button type="button" class="text-button" disabled aria-label="Домашки — пока недоступны">
+          Домашки</button
+        ><button type="button" class="text-button" data-nav="quiz-section">Квизы</button
+        ><button type="button" class="text-button" data-action="profile">Профиль</button
+        ><button type="button" class="text-button nav-logout" data-action="logout">Выйти</button>
+      </nav>
+    </header>
+    <main class="layout">
+      <section class="intro" aria-label="Добро пожаловать">
+        <div class="eyebrow"><span></span> МЕСТО ДЛЯ ЛЮБОПЫТНЫХ</div>
+        <h1>Вопросы<br />объединяют<span class="accent">.</span></h1>
+        <p class="intro-copy">
+          А всё начинается с вас.<br />Создайте аккаунт или возвращайтесь в свой.
+        </p>
+        <div class="art" aria-hidden="true">
+          <div class="art-orbit orbit-one"></div>
+          <div class="art-orbit orbit-two"></div>
+          <div class="question-card">
+            <span class="card-dots">● ● ●</span><span class="big-question">?</span
+            ><span class="card-caption">ВСЁ НАЧИНАЕТСЯ С ВОПРОСА</span>
+          </div>
+          <span class="spark spark-one">✦</span><span class="spark spark-two">✦</span>
+          <div class="answer-chip"><span>✓</span> Вы в правильном месте</div>
+          <div class="mini-card">R<span>Q</span></div>
+        </div>
+        <div class="intro-bottom">
+          <span class="tiny-star">✳</span>
+          <p>Один аккаунт.<br /><strong>Ваш следующий шаг.</strong></p>
+          <span class="intro-arrow" aria-hidden="true">↗</span>
+        </div>
+      </section>
+      <section class="workspace" aria-label="Авторизация">
+        <div id="app" aria-live="polite">
+          <div class="auth-card"><p>Загружаем ваш аккаунт…</p></div>
+        </div>
+        <noscript>Для входа включите JavaScript в настройках браузера.</noscript>
+        <p class="workspace-foot">
+          <span aria-hidden="true">◇</span> Ваш пароль хранится только в виде хеша.
+        </p>
+      </section>
+    </main>
+    <footer class="footer">
+      <span>© RumpelQuiz, 2026</span
+      ><span>С любопытством к каждому вопросу <span aria-hidden="true">✦</span></span>
+    </footer>
+  </body>
+</html>

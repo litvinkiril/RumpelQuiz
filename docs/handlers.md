@@ -121,6 +121,7 @@
 | GET | `/game.js` | `handler-frontend-game-js` | Интерфейс игровой сессии |
 | GET | `/test.js` | `handler-frontend-test-js` | Интерфейс тестов |
 | GET | `/vendor/qrcode.js` | `handler-frontend-qr-js` | Библиотека QR-кодов |
+| GET | `/assets/*` | `handler-frontend-assets` | Встроенные ES-модули и CSS по разделам; отсутствующие ресурсы возвращают 404 |
 
 ## Демонстрационные и служебные — 4 маршрута
 

@@ -59,7 +59,7 @@ test('test API uses protected /v1/tests routes and teacher/editor rendering esca
  assert.ok(!html.includes('time_seconds'));assert.ok(!html.includes('game-create'));assert.match(html,/Опубликовать private/);
  d.status='private';html=renderTests({screen:'test',testDraft:d,testShareUrl:'https://example.com/?test='+id},'');
  assert.match(html,/<fieldset class="quiz-fields" disabled>/);assert.ok(!html.includes('test-save-draft'));assert.match(html,/Результаты учеников/);
- assert.match(renderView({screen:'account',accountRoles:['teacher']}),/Создать тест/);assert.match(renderView({screen:'account',accountRoles:['student']}),/Посмотреть назначенные тесты/);
+ assert.match(renderView({screen:'test-section',accountRoles:['teacher']}),/Создать тест/);assert.match(renderView({screen:'test-section',accountRoles:['student']}),/Пройти тест/);
 });
 
 test('student starts/resumes by link, keeps server deadline and sends selected answers',async()=>{

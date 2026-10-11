@@ -3,11 +3,14 @@ import pytest
 
 @pytest.mark.parametrize('path,content_type,marker', [
     ('/', 'text/html', 'RumpelQuiz'),
-    ('/styles.css', 'text/css', '@media'),
+    ('/styles.css', 'text/css', '@import'),
     ('/app.js', 'text/javascript', 'createController'),
     ('/test.js', 'text/javascript', 'createTestController'),
     ('/game.js', 'text/javascript', 'createGameController'),
     ('/vendor/qrcode.js', 'text/javascript', 'qrcode'),
+    ('/assets/core/controller.js', 'text/javascript', 'createController'),
+    ('/assets/features/profile/view.js', 'text/javascript', 'Описание'),
+    ('/assets/styles/home.css', 'text/css', '@media'),
 ])
 async def test_frontend_assets(service_client, path, content_type, marker):
     response = await service_client.get(path)
@@ -20,5 +23,7 @@ async def test_frontend_assets(service_client, path, content_type, marker):
 
 
 async def test_frontend_does_not_expose_source_or_config(service_client):
-    for path in ['/configs/config_vars.yaml', '/.env', '/frontend/app.js', '/unknown']:
+    for path in ['/configs/config_vars.yaml', '/.env', '/frontend/app.js', '/unknown',
+                 '/assets/unknown.js', '/assets/package.json', '/assets/tests/auth.test.js',
+                 '/assets/.env']:
         assert (await service_client.get(path)).status == 404

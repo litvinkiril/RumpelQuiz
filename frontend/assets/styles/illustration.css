@@ -1,0 +1,138 @@
+.art {
+  height: 290px;
+  position: relative;
+  margin-top: 8px;
+  isolation: isolate;
+}
+.art-orbit {
+  position: absolute;
+  width: 300px;
+  height: 220px;
+  border: 1px solid #d8d2f1;
+  border-radius: 50%;
+  left: 70px;
+  top: 48px;
+  transform: rotate(-30deg);
+}
+.orbit-two {
+  transform: rotate(28deg);
+  width: 360px;
+  left: 20px;
+  top: 50px;
+}
+.question-card {
+  position: absolute;
+  left: 98px;
+  top: 35px;
+  width: 192px;
+  height: 224px;
+  background: var(--purple);
+  color: #fff;
+  border-radius: 20px;
+  transform: rotate(-11deg);
+  box-shadow: 12px 18px 0 #ddd7f3;
+  padding: 19px 20px;
+  display: flex;
+  flex-direction: column;
+}
+.card-dots {
+  font-size: 8px;
+  letter-spacing: 3px;
+  color: #b1a3fc;
+}
+.big-question {
+  text-align: center;
+  font-size: 128px;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: -10px;
+}
+.card-caption {
+  font-size: 8px;
+  letter-spacing: 1.1px;
+  margin-top: auto;
+}
+.spark {
+  position: absolute;
+  color: var(--purple);
+  font-size: 54px;
+}
+.spark-one {
+  right: 30px;
+  top: 35px;
+  transform: rotate(12deg);
+}
+.spark-two {
+  left: 24px;
+  bottom: 18px;
+  font-size: 30px;
+}
+.answer-chip {
+  position: absolute;
+  right: 0;
+  bottom: 34px;
+  border: 1px solid white;
+  background: #fff;
+  border-radius: 14px;
+  padding: 15px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 10px 30px #43327712;
+  transform: rotate(5deg);
+}
+.answer-chip span {
+  background: #d8f4e8;
+  color: #247153;
+  border-radius: 50%;
+  padding: 3px 6px;
+  margin-right: 8px;
+}
+.mini-card {
+  position: absolute;
+  right: 39px;
+  top: 118px;
+  transform: rotate(15deg);
+  padding: 15px;
+  border-radius: 13px;
+  background: #bce4d2;
+  color: #304f44;
+  font-weight: 750;
+  font-size: 25px;
+  box-shadow: 4px 5px 0 #a5d3be;
+}
+.mini-card span {
+  color: white;
+}
+.intro-bottom {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: auto;
+  padding-top: 22px;
+  border-top: 1px solid #ddd7ed;
+}
+.intro-bottom p {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+  color: #79718e;
+}
+.intro-bottom strong {
+  font-weight: 500;
+  color: #514666;
+}
+.tiny-star {
+  font-size: 33px;
+  color: #7464ad;
+}
+.intro-arrow {
+  margin-left: auto;
+  font-size: 24px;
+  color: #7464ad;
+}
+.workspace {
+  padding: 46px 56px 25px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}

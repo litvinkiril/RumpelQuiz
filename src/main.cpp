@@ -80,6 +80,7 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::FrontendHandler>()
           .Append<RumpelQuiz::FrontendHandler>("handler-frontend-css")
           .Append<RumpelQuiz::FrontendHandler>("handler-frontend-js")
+          .Append<RumpelQuiz::FrontendHandler>("handler-frontend-assets")
           .Append<RumpelQuiz::FrontendHandler>("handler-frontend-quiz-js")
           .Append<RumpelQuiz::FrontendHandler>("handler-frontend-game-js")
           .Append<RumpelQuiz::FrontendHandler>("handler-frontend-test-js")

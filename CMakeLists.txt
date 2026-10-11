@@ -28,18 +28,10 @@ find_library(WEBP_LIBRARY webp REQUIRED)
 find_path(STB_INCLUDE_DIR stb/stb_image.h REQUIRED)
 find_library(CRYPT_LIBRARY crypt REQUIRED)
 
-# Embed the frontend into the service: one origin, no extra server or npm build.
-set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-    frontend/index.html frontend/styles.css frontend/app.js frontend/quiz.js
-    frontend/game.js frontend/test.js frontend/vendor/qrcode.js)
-file(READ frontend/index.html FRONTEND_HTML)
-file(READ frontend/styles.css FRONTEND_CSS)
-file(READ frontend/app.js FRONTEND_JS)
-file(READ frontend/quiz.js FRONTEND_QUIZ_JS)
-file(READ frontend/game.js FRONTEND_GAME_JS)
-file(READ frontend/test.js FRONTEND_TEST_JS)
-file(READ frontend/vendor/qrcode.js FRONTEND_QR_JS)
-configure_file(src/frontend/assets.hpp.in generated/frontend_assets.hpp @ONLY)
+# Embed the frontend modules: one origin, no extra server or JavaScript build.
+include(EmbedFrontend)
+embed_frontend("${CMAKE_CURRENT_SOURCE_DIR}/frontend"
+               "${CMAKE_CURRENT_BINARY_DIR}/generated/frontend_assets.hpp")
 
 
 # Common sources

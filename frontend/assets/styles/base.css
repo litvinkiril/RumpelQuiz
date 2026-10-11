@@ -1,0 +1,193 @@
+:root {
+  font-family: Inter, 'Segoe UI', Arial, sans-serif;
+  color: #252331;
+  background: #f6f7fa;
+  font-synthesis: none;
+  --purple: #5339d6;
+  --muted: #747382;
+  --line: #e7e7ed;
+}
+
+.people-search {
+  display: flex;
+  gap: 12px;
+}
+.people-search input {
+  min-width: 0;
+}
+.people-search .primary {
+  width: auto;
+  flex-shrink: 0;
+}
+.person-info {
+  min-width: 0;
+}
+.person-info .admin-name,
+.person-roles,
+.person-study {
+  display: block;
+}
+.person-roles {
+  color: var(--purple);
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 5px;
+}
+.person-study {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+}
+form[role='search'] {
+  margin-bottom: 24px;
+}
+@media (max-width: 480px) {
+  .people-search {
+    flex-direction: column;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input {
+  font: inherit;
+}
+button,
+a,
+input {
+  -webkit-tap-highlight-color: transparent;
+}
+button,
+a {
+  touch-action: manipulation;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid #a99af9;
+  outline-offset: 4px;
+}
+.header {
+  height: 108px;
+  max-width: 1376px;
+  margin: auto;
+  padding: 0 64px;
+  display: flex;
+  align-items: center;
+  gap: 36px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  font-size: 23px;
+  font-weight: 750;
+  letter-spacing: -0.8px;
+}
+.brand-quiz {
+  color: var(--purple);
+}
+.brand-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 40px;
+  margin-right: 12px;
+  border-radius: 12px;
+  background: var(--purple);
+  color: white;
+  font-size: 27px;
+  line-height: 1;
+  transform: rotate(-5deg);
+}
+.brand-mark span {
+  position: absolute;
+  font-size: 16px;
+  right: -4px;
+  top: -6px;
+  color: #90cfb8;
+}
+.header-note {
+  font-size: 14px;
+  color: var(--muted);
+  margin-left: 12px;
+}
+.header-label {
+  margin-left: auto;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.header-label span {
+  margin-left: 20px;
+  font-size: 22px;
+  color: var(--purple);
+}
+.layout {
+  max-width: 1248px;
+  margin: 20px auto 48px;
+  min-height: 670px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-radius: 28px;
+  overflow: hidden;
+  background: white;
+  box-shadow: 0 8px 50px #27214305;
+  border: 1px solid #eeedf3;
+}
+.intro {
+  padding: 46px 48px 30px;
+  background: #eeecfa;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.8px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #64598e;
+}
+.eyebrow span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--purple);
+}
+h1 {
+  font-size: clamp(40px, 4.1vw, 58px);
+  line-height: 1.08;
+  letter-spacing: -2.5px;
+  margin: 32px 0 18px;
+  font-weight: 740;
+}
+.accent {
+  color: var(--purple);
+}
+.intro-copy {
+  font-size: 16px;
+  line-height: 1.7;
+  color: #716b84;
+  margin: 0;
+}

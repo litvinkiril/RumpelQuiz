@@ -1,0 +1,240 @@
+/* University administration. */
+.membership-info {
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+.membership-name {
+  display: block;
+  font-size: 19px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  overflow-wrap: anywhere;
+}
+.membership-group {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}
+.membership-button {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    transform 0.15s;
+}
+.membership-button:hover {
+  border-color: #b8a6f4;
+  background: #f2edff;
+  transform: translateY(-2px);
+}
+.membership-arrow {
+  color: var(--purple);
+  align-self: center;
+}
+.membership-button:focus-visible,
+.section-card:focus-visible,
+.admin-card:focus-visible,
+.dialog-close:focus-visible {
+  outline: 3px solid #8c75e8;
+  outline-offset: 4px;
+}
+.university-sections {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 30px;
+}
+.section-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  text-align: left;
+  border: 1px solid #e8e3f5;
+  border-radius: 16px;
+  background: #faf9fe;
+  padding: 24px 20px;
+  color: #252331;
+  min-height: 146px;
+  font: inherit;
+}
+.section-card:not(:disabled):hover {
+  border-color: #b8a6f4;
+  background: #f2edff;
+}
+.section-card strong {
+  display: block;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.section-description {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-top: 10px;
+}
+.section-icon {
+  color: var(--purple);
+  font-size: 25px;
+  line-height: 1.2;
+}
+.section-arrow {
+  margin-left: auto;
+  color: var(--purple);
+}
+.section-card:disabled {
+  opacity: 1;
+  cursor: default;
+  background: #fafafa;
+  color: #76717e;
+}
+.section-card:disabled .section-icon {
+  color: #a39bad;
+}
+.section-soon {
+  margin-left: auto;
+  background: #eceaf1;
+  color: #78717f;
+  border-radius: 12px;
+  font-size: 10px;
+  padding: 4px 7px;
+  white-space: nowrap;
+}
+.university-label {
+  overflow-wrap: anywhere;
+}
+.list-count {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 26px 0 14px;
+}
+.admin-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.admin-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 17px;
+  border: 1px solid #ebe6f4;
+  border-radius: 14px;
+  background: #fff;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  min-height: 90px;
+}
+.admin-card:hover {
+  background: #faf8ff;
+  border-color: #b8a6f4;
+}
+.person-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  font-size: 17px;
+}
+.admin-name {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.contact-arrow {
+  color: #9484ba;
+  margin-left: auto;
+}
+.list-loading,
+.empty-list {
+  padding: 28px 20px;
+  background: #faf9fe;
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.contact-dialog {
+  position: fixed;
+  margin: auto;
+  border: 1px solid #e8e3f5;
+  border-radius: 22px;
+  padding: 32px;
+  width: min(420px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+  color: #252331;
+  box-shadow: 0 24px 90px #21173c35;
+}
+.contact-dialog::backdrop {
+  background: #21173c66;
+}
+.contact-dialog .person-avatar {
+  width: 64px;
+  height: 64px;
+  font-size: 23px;
+  border-radius: 20px;
+}
+.contact-dialog h3 {
+  font-size: 20px;
+  line-height: 1.5;
+  margin: 20px 0 24px;
+  overflow-wrap: anywhere;
+}
+.dialog-close {
+  position: absolute;
+  right: 14px;
+  top: 10px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #80788f;
+  font-size: 28px;
+}
+.dialog-close:hover {
+  background: #f2edff;
+}
+.contact-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+.contact-email {
+  display: inline-block;
+  color: var(--purple);
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+  text-underline-offset: 4px;
+}
+@media (max-width: 760px) {
+  .university-sections,
+  .admin-list {
+    grid-template-columns: 1fr;
+  }
+  .section-card {
+    min-height: 110px;
+    padding: 20px 16px;
+  }
+  .admin-card {
+    padding: 14px;
+  }
+  .contact-dialog {
+    padding: 26px;
+  }
+  .person-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 17px;
+  }
+}
