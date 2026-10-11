@@ -37,7 +37,7 @@ async def test_user_creation_requires_authentication(service_client):
 
 
 @pytest.mark.parametrize('role,with_faculty', [
-    ('student', False), ('teacher', False), ('admin', False), ('admin', True),
+    ('student', False), ('teacher', False), ('admin', True),
 ])
 async def test_user_creation_persists_profile_and_membership(
     service_client, creation_data, role, with_faculty,
@@ -62,7 +62,7 @@ async def test_user_creation_persists_profile_and_membership(
     assert (email, verified) == (payload['email'], True)
     assert password_hash.startswith('$2b$')
     assert password_hash != payload['password']
-    scope = ('faculties' if with_faculty else 'university') if role == 'admin' else None
+    scope = 'faculties' if role == 'admin' else None
     cursor.execute(
         'SELECT id, university_id, role, status, admin_scope '
         'FROM education.memberships WHERE user_id = %s', (user_id,),
@@ -191,6 +191,30 @@ async def test_user_creation_faculty_requires_admin_role(service_client, creatio
     assert_not_created(cursor, payload['email'])
 
 
+@pytest.mark.parametrize('faculty_value', ['missing', None])
+async def test_user_creation_admin_requires_faculty(
+    service_client, creation_data, faculty_value,
+):
+    cursor, actor, payload = creation_data
+    payload['role'] = 'admin'
+    if faculty_value != 'missing':
+        payload['facultet_id'] = faculty_value
+
+    response = await service_client.post(
+        ENDPOINT, json=payload, headers=auth_headers(actor),
+    )
+
+    assert response.status == 400
+    assert response.json() == {'success': False, 'error': 'invalid_faculty'}
+    assert_not_created(cursor, payload['email'])
+    cursor.execute('SELECT count(*) FROM users.profiles')
+    assert cursor.fetchone()[0] == 0
+    cursor.execute('SELECT count(*) FROM education.memberships')
+    assert cursor.fetchone()[0] == 1  # Only the requesting administrator.
+    cursor.execute('SELECT count(*) FROM education.admin_faculties')
+    assert cursor.fetchone()[0] == 0
+
+
 @pytest.mark.parametrize('access', [
     'student', 'teacher', 'inactive', 'other_university', 'none',
 ])
@@ -253,6 +277,10 @@ async def test_user_creation_respects_faculty_admin_scope(service_client, creati
     response = await service_client.post(ENDPOINT, json=payload, headers=auth_headers(actor))
     if target == 'own':
         assert response.status == 201, response.text
+    elif target == 'university':
+        assert response.status == 400, response.text
+        assert response.json() == {'success': False, 'error': 'invalid_faculty'}
+        assert_not_created(cursor, payload['email'])
     else:
         assert response.status == 403, response.text
         assert response.json() == {'success': False, 'error': 'university_access_denied'}

@@ -2,6 +2,10 @@ import { testQuestionComplete } from '../features/tests/model.js';
 import { questionComplete } from '../features/quizzes/model.js';
 export function bindEvents({ root, controller, render, canLeave }) {
   root.addEventListener('input', (event) => {
+    if (event.target.dataset.userField) {
+      controller.editNewUser(event.target.dataset.userField, event.target.value);
+      return;
+    }
     if (event.target.dataset.testField) {
       const el = event.target;
       if (el.tagName === 'SELECT' || ['radio', 'checkbox'].includes(el.type)) return;
@@ -48,6 +52,14 @@ export function bindEvents({ root, controller, render, canLeave }) {
     if (dirty) dirty.textContent = 'Есть несохранённые изменения';
   });
   root.addEventListener('change', (event) => {
+    if (event.target.hasAttribute('data-user-role')) {
+      void controller.selectNewUserRole(event.target.value);
+      return;
+    }
+    if (event.target.dataset.userField) {
+      controller.editNewUser(event.target.dataset.userField, event.target.value);
+      return;
+    }
     if (event.target.dataset.gameAnswer) {
       controller.chooseGameAnswer(event.target.dataset.gameAnswer, event.target.checked);
       return;
@@ -97,6 +109,11 @@ export function bindEvents({ root, controller, render, canLeave }) {
     event.preventDefault();
     if (controller.state.busy) return;
     const form = event.target;
+    if (form.dataset.form === 'user-create') {
+      if (form.reportValidity())
+        void controller.createUser(new FormData(form).get('new-user-password'));
+      return;
+    }
     if (form.dataset.form === 'game-create') {
       if (form.reportValidity()) void controller.createGame(new FormData(form).get('game-name'));
       return;
@@ -124,6 +141,11 @@ export function bindEvents({ root, controller, render, canLeave }) {
     if (form.dataset.form === 'quiz-search') {
       const query = new FormData(form);
       void controller.searchQuizCatalog(query.get('quiz-query'), query.has('quiz-favourites'));
+      return;
+    }
+    if (form.dataset.form === 'test-search') {
+      const query = new FormData(form);
+      void controller.searchTestCatalog(query.get('test-query'), query.has('test-favourites'));
       return;
     }
     if (!form.reportValidity()) return;
@@ -157,7 +179,10 @@ export function bindEvents({ root, controller, render, canLeave }) {
         'quiz-catalog',
         'new-quiz',
         'edit-quiz',
+        'view-quiz',
+        'launch-quiz',
         'create-test',
+        'test-catalog',
         'my-tests',
         'new-test',
         'edit-test',
@@ -166,16 +191,24 @@ export function bindEvents({ root, controller, render, canLeave }) {
         'game-join',
         'game-resume',
         'profile',
+        'create-user',
         'logout',
       ].includes(action) &&
       !canLeave()
     )
       return;
     if (action === 'quiz-catalog') void controller.openQuizCatalog();
+    if (action === 'create-user') void controller.openUserCreation();
+    if (action === 'user-faculties-retry') void controller.loadUserFaculties(true);
     if (action === 'quiz-catalog-retry') void controller.searchQuizCatalog();
     if (action === 'quiz-catalog-more')
       void controller.searchQuizCatalog(undefined, undefined, true);
     if (action === 'quiz-favourite') void controller.toggleQuizFavourite(button.dataset.id);
+    if (action === 'test-catalog') void controller.openTestCatalog();
+    if (action === 'test-catalog-retry') void controller.searchTestCatalog();
+    if (action === 'test-catalog-more')
+      void controller.searchTestCatalog(undefined, undefined, true);
+    if (action === 'test-favourite') void controller.toggleTestFavourite(button.dataset.id);
     if (action === 'game-next') void controller.nextGameQuestion();
     if (action === 'game-close') void controller.closeGame();
     if (action === 'game-join') controller.openGameJoin();
@@ -211,6 +244,9 @@ export function bindEvents({ root, controller, render, canLeave }) {
     if (action === 'session-results') void controller.openSessionResults(button.dataset.id);
     if (action === 'new-quiz') controller.newQuiz();
     if (action === 'edit-quiz') void controller.loadQuiz(button.dataset.id);
+    if (action === 'view-quiz') void controller.loadQuiz(button.dataset.id, 'quiz-preview');
+    if (action === 'launch-quiz') void controller.loadQuiz(button.dataset.id, 'quiz-launch');
+    if (action === 'quiz-back') controller.returnFromQuiz();
     if (action === 'quiz-save-draft') void controller.saveQuiz('draft');
     if (
       [

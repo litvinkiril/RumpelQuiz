@@ -1,0 +1,81 @@
+.university-actions,
+.user-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.university-actions > button,
+.user-form-actions > button {
+  width: auto;
+  margin: 0;
+  flex: 1 1 220px;
+}
+.user-create-form {
+  margin-top: 28px;
+}
+.user-create-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.user-name-fields,
+.user-form-grid {
+  display: grid;
+  gap: 0 20px;
+}
+.user-name-fields {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.user-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.user-create-form .field {
+  min-width: 0;
+}
+.user-create-form select,
+.user-create-form textarea {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  color: inherit;
+  border: 1px solid #dddde6;
+  background: white;
+  border-radius: 10px;
+  padding: 12px 14px;
+  line-height: 1.5;
+}
+.user-create-form textarea {
+  resize: vertical;
+}
+.user-create-form select:focus,
+.user-create-form textarea:focus {
+  outline: 3px solid #ede9ff;
+  border-color: #8972ea;
+}
+.user-create-form .empty-list {
+  margin: 0;
+}
+.user-form-actions {
+  margin-top: 12px;
+}
+.user-created {
+  padding: 24px;
+  background: #f4fbf7;
+  border: 1px solid #d6ebdf;
+  border-radius: 16px;
+  margin: 24px 0;
+  overflow-wrap: anywhere;
+}
+.user-created h3 {
+  margin: 0 0 12px;
+}
+.user-created p {
+  margin: 0 0 16px;
+}
+@media (max-width: 760px) {
+  .user-name-fields,
+  .user-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

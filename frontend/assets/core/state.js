@@ -19,6 +19,11 @@ export function createState(storage) {
     accountRoles: null,
     accountRolesError: '',
     selectedUniversity: null,
+    newUserDraft: null,
+    createdUser: null,
+    userCreationDirty: false,
+    userFaculties: null,
+    facultyCache: {},
     admins: null,
     selectedAdmin: null,
     people: null,
@@ -29,6 +34,12 @@ export function createState(storage) {
     quizCatalogFavourites: false,
     quizCatalogMore: false,
     quizCatalogOffset: 0,
+    quizReturnScreen: 'quizzes',
+    testCatalog: null,
+    testCatalogName: '',
+    testCatalogFavourites: false,
+    testCatalogMore: false,
+    testCatalogOffset: 0,
   };
 
   try {

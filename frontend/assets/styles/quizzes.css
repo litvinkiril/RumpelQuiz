@@ -213,6 +213,54 @@
 .add-question:disabled {
   opacity: 0.5;
 }
+.quiz-preview-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.quiz-preview-launch {
+  width: auto;
+  margin-bottom: 24px;
+}
+.quiz-preview-questions {
+  margin-top: 24px;
+}
+.quiz-preview-question > p {
+  line-height: 1.6;
+}
+.quiz-preview-image {
+  display: block;
+  max-width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: 10px;
+  margin: 12px 0;
+}
+.quiz-preview-answers {
+  padding-left: 24px;
+}
+.quiz-preview-answers li {
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  background: #faf9fe;
+  border: 1px solid #eeebf5;
+  border-radius: 12px;
+}
+.quiz-preview-answers li.correct {
+  background: #effaf3;
+  border-color: #cce8d6;
+}
+.quiz-preview-answers p {
+  margin: 0;
+  line-height: 1.6;
+}
+.quiz-preview-correct {
+  display: block;
+  margin-top: 8px;
+  color: #26734d;
+  font-size: 12px;
+  font-weight: 600;
+}
 @media (max-width: 600px) {
   .quiz-settings,
   .question-card-editor {

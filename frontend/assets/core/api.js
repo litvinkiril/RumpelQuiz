@@ -15,7 +15,7 @@ export function createApi(fetcher = globalThis.fetch) {
       const url =
         path === 'profile'
           ? '/v1/user/profile'
-          : /^(education\/|quizzes(?:\/|$)|tests(?:\/|$)|media\/|game\/)/.test(path)
+          : /^(user\/|education\/|quizzes(?:\/|$)|tests(?:\/|$)|media\/|game\/)/.test(path)
             ? '/v1/' + path
             : '/v1/auth/' + path;
       const multipart = typeof FormData !== 'undefined' && data instanceof FormData;

@@ -1,6 +1,7 @@
 import { html, escape } from '../../shared/html.js';
 import { questionComplete } from './model.js';
 import { renderResults } from '../game/results.js';
+import { renderQuizLaunchForm } from './preview.js';
 function errorLabel(path) {
   const question = /^questions\[(\d+)\]/.exec(path),
     answer = /\.answers\[(\d+)\]/.exec(path);
@@ -94,10 +95,16 @@ export function renderQuiz(state, notice) {
               <div class="quiz-actions">
                 <button
                   class="primary"
-                  data-action="edit-quiz"
+                  data-action="launch-quiz"
                   data-id="${escape(state.selectedQuiz.id)}"
                 >
                   Создать сессию</button
+                ><button
+                  class="secondary"
+                  data-action="view-quiz"
+                  data-id="${escape(state.selectedQuiz.id)}"
+                >
+                  Посмотреть квиз</button
                 ><button
                   class="secondary"
                   data-action="quiz-sessions"
@@ -180,7 +187,7 @@ export function renderQuiz(state, notice) {
     </p>
     ${notice}
     ${errors.length ? html`<div class="notice error" role="alert">${errors.map((e) => html`<div>${escape(errorLabel(e.field))}: ${escape(e.message)}</div>`).join('')}</div>` : ''}
-    ${published ? '<form class="game-launch" data-form="game-create"><p>Проведите этот квиз: участники войдут по коду или QR.</p><div class="field"><label for="game-name">Название сессии</label><input id="game-name" name="game-name" required placeholder="Например, ИС-21 · Практика 3"><p class="hint">От 1 до 200 символов.</p></div><button type="submit" class="primary">Создать сессию</button></form>' : ''}
+    ${published ? renderQuizLaunchForm() : ''}
     <form data-form="quiz" novalidate>
       <fieldset class="quiz-fields" ${state.busy || published ? 'disabled' : ''}>
         <section class="quiz-settings">

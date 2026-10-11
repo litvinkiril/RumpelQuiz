@@ -127,6 +127,26 @@ components_manager:
 
         profile-service: {}
 
+        education-structure-service: {}
+
+        handler-get-faculties:
+            path: /v1/education/faculties
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+
+        handler-get-programs:
+            path: /v1/education/programs
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+
+        handler-get-groups:
+            path: /v1/education/groups
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+
         handler-get-profile:
             path: /v1/user/profile
             method: GET

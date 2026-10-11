@@ -142,9 +142,13 @@ bool EducationRepository::AddMembership(
     std::string_view role,
     std::optional<boost::uuids::uuid> facultet_id
 ) const {
+    if (role == "admin" && !facultet_id) {
+        return false;
+    }
+
     std::optional<std::string> admin_scope;
     if (role == "admin") {
-        admin_scope = facultet_id ? "faculties" : "university";
+        admin_scope = "faculties";
     }
 
     const auto result = transaction.Execute(

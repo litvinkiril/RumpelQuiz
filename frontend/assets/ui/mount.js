@@ -34,13 +34,17 @@ export function mountApp(root, options = {}) {
       'account',
       'quiz-section',
       'test-section',
+      'test-catalog',
       'profile',
       'university',
+      'user-create',
       'admins',
       'people',
       'quiz',
       'quizzes',
       'quiz-catalog',
+      'quiz-preview',
+      'quiz-launch',
       'quiz-sessions',
       'quiz-results',
       'test',
@@ -63,7 +67,9 @@ export function mountApp(root, options = {}) {
         .querySelector('[data-action="profile"]')
         ?.setAttribute(
           'aria-current',
-          ['profile', 'university', 'admins', 'people'].includes(state.screen) ? 'page' : 'false',
+          ['profile', 'university', 'user-create', 'admins', 'people'].includes(state.screen)
+            ? 'page'
+            : 'false',
         );
       nav
         .querySelector('[data-nav="quiz-section"]')
@@ -74,6 +80,8 @@ export function mountApp(root, options = {}) {
             'quiz',
             'quizzes',
             'quiz-catalog',
+            'quiz-preview',
+            'quiz-launch',
             'quiz-sessions',
             'quiz-results',
             'game',
@@ -88,6 +96,7 @@ export function mountApp(root, options = {}) {
           'aria-current',
           [
             'test-section',
+            'test-catalog',
             'test',
             'tests',
             'available-tests',
@@ -106,7 +115,15 @@ export function mountApp(root, options = {}) {
         event.target.remove();
       }),
     );
-    if (lastScreen === state.screen && !['quiz', 'test', 'test-play'].includes(state.screen)) {
+    if (lastScreen === 'user-create' && state.screen === 'user-create') {
+      const password = root.querySelector('#new-user-password');
+      if (password && values.has('new-user-password'))
+        password.value = values.get('new-user-password');
+      if (focusId) root.ownerDocument.getElementById(focusId)?.focus({ preventScroll: true });
+    } else if (
+      lastScreen === state.screen &&
+      !['quiz', 'test', 'test-play'].includes(state.screen)
+    ) {
       for (const el of root.querySelectorAll('input'))
         if (values.has(el.name)) el.value = values.get(el.name);
       const focus = [...root.querySelectorAll('input')].find((el) => el.name === focusName);
@@ -195,13 +212,14 @@ export function mountApp(root, options = {}) {
   const canLeave = () =>
     !(
       (controller.state.quizDirty && controller.state.screen === 'quiz') ||
-      (controller.state.testDirty && controller.state.screen === 'test')
-    ) ||
-    root.ownerDocument.defaultView.confirm('Есть несохранённые изменения. Выйти из редактора?');
+      (controller.state.testDirty && controller.state.screen === 'test') ||
+      (controller.state.userCreationDirty && controller.state.screen === 'user-create')
+    ) || root.ownerDocument.defaultView.confirm('Есть несохранённые изменения. Выйти со страницы?');
   const beforeUnload = (event) => {
     if (
       (controller.state.screen === 'quiz' && controller.state.quizDirty) ||
-      (controller.state.screen === 'test' && controller.state.testDirty)
+      (controller.state.screen === 'test' && controller.state.testDirty) ||
+      (controller.state.screen === 'user-create' && controller.state.userCreationDirty)
     ) {
       event.preventDefault();
       event.returnValue = '';

@@ -8,6 +8,18 @@
 
 namespace RumpelQuiz {
 
+enum class StructureFilterKind {
+    kUniversity,
+    kFaculty,
+    kProgram,
+};
+
+struct StructureFilter {
+    StructureFilterKind kind;
+    boost::uuids::uuid id;
+};
+
+
 struct University {
     boost::uuids::uuid id;
     std::string name;

@@ -46,6 +46,10 @@ CreateUserResult UserCreationService::CreateUser(
     return CreateUserError::kInvalidRequest;
   }
 
+  if (request.role == "admin" && !request.facultet_id) {
+    return CreateUserError::kInvalidFaculty;
+  }
+
   if (request.facultet_id && request.role != "admin") {
     return CreateUserError::kInvalidRequest;
   }

@@ -2,9 +2,11 @@ import { html, escapeHtml } from '../shared/html.js';
 import { renderAuth } from '../features/auth/view.js';
 import { renderProfile } from '../features/profile/view.js';
 import { renderEducation } from '../features/education/view.js';
+import { renderUserCreation } from '../features/user-creation/view.js';
 import { renderAccount, renderSection } from '../features/home/view.js';
 import { renderCatalog } from '../features/catalog/view.js';
 import { renderQuiz } from '../features/quizzes/view.js';
+import { renderQuizPreview, renderQuizLaunch } from '../features/quizzes/preview.js';
 import { renderTests } from '../features/tests/view.js';
 import { renderGame } from '../features/game/view.js';
 
@@ -19,9 +21,13 @@ const views = {
   university: renderEducation,
   people: renderEducation,
   admins: renderEducation,
+  'user-create': renderUserCreation,
   'quiz-section': renderSection,
   'test-section': renderSection,
   'quiz-catalog': renderCatalog,
+  'test-catalog': renderCatalog,
+  'quiz-preview': renderQuizPreview,
+  'quiz-launch': renderQuizLaunch,
   quiz: renderQuiz,
   quizzes: renderQuiz,
   'quiz-sessions': renderQuiz,

@@ -379,6 +379,19 @@
   font-size: 13px;
   overflow-wrap: anywhere;
 }
+.catalog-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+.catalog-item-actions .primary,
+.catalog-item-actions .secondary {
+  width: auto;
+  margin: 0;
+  padding: 11px 15px;
+  font-size: 13px;
+}
 .catalog-item-icon {
   display: grid;
   place-items: center;

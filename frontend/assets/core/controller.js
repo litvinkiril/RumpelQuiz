@@ -5,6 +5,7 @@ import { readAccountRoles } from '../shared/roles.js';
 import { createAuthController } from '../features/auth/controller.js';
 import { createProfileController } from '../features/profile/controller.js';
 import { createEducationController } from '../features/education/controller.js';
+import { createUserCreationController } from '../features/user-creation/controller.js';
 import { createQuizController } from '../features/quizzes/controller.js';
 import { createCatalogController } from '../features/catalog/controller.js';
 import { createTestController } from '../features/tests/controller.js';
@@ -22,20 +23,33 @@ export function createController({
 } = {}) {
   let sequence = 0;
   const { state, persist } = createState(storage);
-  const resetQuizCatalog = () =>
+  const resetCatalogs = () =>
     Object.assign(state, {
       quizCatalog: null,
       quizCatalogName: '',
       quizCatalogFavourites: false,
       quizCatalogMore: false,
       quizCatalogOffset: 0,
+      testCatalog: null,
+      testCatalogName: '',
+      testCatalogFavourites: false,
+      testCatalogMore: false,
+      testCatalogOffset: 0,
     });
   const clearPeople = () => {
     state.people = null;
     state.peopleQuery = '';
     state.nextOffset = null;
   };
+  const clearUserForm = () => {
+    state.newUserDraft = null;
+    state.createdUser = null;
+    state.userFaculties = null;
+    state.userCreationDirty = false;
+  };
   const clearEducation = () => {
+    clearUserForm();
+    state.facultyCache = {};
     clearPeople();
     state.selectedUniversity = null;
     state.admins = null;
@@ -88,7 +102,7 @@ export function createController({
           state.accountRolesError = '';
           clearEducation();
           tests.resetTestView();
-          resetQuizCatalog();
+          resetCatalogs();
         }
         if (error.code === 'resend_too_soon') state.resendAt = now() + 60000;
         if (error.code === 'invalid_or_expired_token') {
@@ -126,7 +140,7 @@ export function createController({
   }) => {
     game.resetGameView();
     tests.resetTestView();
-    resetQuizCatalog();
+    resetCatalogs();
     state.token = token;
     state.refreshToken = refreshToken;
     state.sessionId = sessionId;
@@ -176,18 +190,20 @@ export function createController({
     storage,
     clearEducation,
     clearPeople,
-    resetQuizCatalog,
+    resetCatalogs,
     cancelPending: () => ++sequence,
   };
   const auth = createAuthController({ ...context, authenticate, setAccount, game, tests });
   const profile = createProfileController(context);
   const education = createEducationController(context);
+  const userCreation = createUserCreationController(context);
   const quizzes = createQuizController(context);
   const catalog = createCatalogController(context);
   return {
     ...auth,
     ...profile,
     ...education,
+    ...userCreation,
     ...quizzes,
     ...catalog,
     ...tests,
@@ -209,6 +225,7 @@ export function createController({
     },
     navigate(screen) {
       if (['quiz-section', 'test-section'].includes(screen) && state.token) {
+        clearUserForm();
         ++sequence;
         state.busy = false;
         state.screen = screen;
@@ -228,6 +245,7 @@ export function createController({
         return;
       }
       if (screen === 'university' && state.token && state.selectedUniversity) {
+        clearUserForm();
         clearPeople();
         ++sequence;
         state.busy = false;
@@ -263,7 +281,7 @@ export function createController({
       state.profile = null;
       state.accountRoles = null;
       state.accountRolesError = '';
-      resetQuizCatalog();
+      resetCatalogs();
       tests.resetTestView();
       clearEducation();
       state.verificationId = '';

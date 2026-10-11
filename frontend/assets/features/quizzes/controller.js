@@ -96,18 +96,36 @@ export function createQuizController({ state, authorized, run, emit, fail }) {
       state.screen = 'quiz';
       emit();
     },
-    loadQuiz(id) {
+    loadQuiz(id, screen = 'quiz') {
       if (state.busy || !state.token) return Promise.resolve(false);
+      if (!['quiz', 'quiz-preview', 'quiz-launch'].includes(screen)) return Promise.resolve(false);
+      const returnScreen = ['quiz-preview', 'quiz-launch'].includes(state.screen)
+        ? state.quizReturnScreen
+        : state.screen === 'quiz-catalog'
+          ? 'quiz-catalog'
+          : 'quizzes';
       return run(
         () => authorized('quizzes/' + encodeURIComponent(id)),
         (result) => {
+          if (!result?.quiz || !Array.isArray(result.quiz.questions))
+            throw new ApiError('Не удалось загрузить квиз. Попробуйте ещё раз.');
+          if (screen === 'quiz-launch' && result.quiz.status !== 'ready')
+            throw new ApiError('Создать сессию можно только для опубликованного квиза.');
           state.selectedQuiz = null;
           state.quizDraft = result.quiz;
           state.quizDirty = false;
           state.quizErrors = [];
-          state.screen = 'quiz';
+          state.quizReturnScreen = returnScreen;
+          state.screen = screen;
         },
       );
+    },
+    returnFromQuiz() {
+      if (state.busy || !state.token) return;
+      state.screen = state.quizReturnScreen === 'quiz-catalog' ? 'quiz-catalog' : 'quizzes';
+      state.error = '';
+      state.success = '';
+      emit();
     },
     editQuiz(field, value, qi, ai) {
       if (state.busy || state.screen !== 'quiz') return;

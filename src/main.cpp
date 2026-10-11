@@ -39,6 +39,10 @@
 #include "education/handlers/get_university_admins_handler.hpp"
 #include "education/service/education_service.hpp"
 #include "education/handlers/search_university_people_handler.hpp"
+#include "education/structure/handlers/get_faculties_handler.hpp"
+#include "education/structure/handlers/get_programs_handler.hpp"
+#include "education/structure/handlers/get_groups_handler.hpp"
+#include "education/structure/service/education_structure_service.hpp"
 #include "game/handlers/create_game_session_handler.hpp"
 #include "game/handlers/game_play_handler.hpp"
 #include "game/handlers/next_game_question_handler.hpp"
@@ -123,6 +127,10 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::ProfileService>()
           .Append<RumpelQuiz::GetProfileHandler>()
           .Append<RumpelQuiz::EducationService>()
+          .Append<RumpelQuiz::EducationStructureService>()
+          .Append<RumpelQuiz::GetFacultiesHandler>()
+          .Append<RumpelQuiz::GetProgramsHandler>()
+          .Append<RumpelQuiz::GetGroupsHandler>()
           .Append<RumpelQuiz::GetUniversityAdminsHandler>()
           .Append<RumpelQuiz::LoginHandler>()
           .Append<RumpelQuiz::LoginService>()

@@ -81,7 +81,13 @@ export function renderSection(state, notice) {
           'Создать тест',
           'Подготовьте задания для самостоятельного прохождения.',
           'edit',
-        ) + card('', 'Посмотреть тесты', 'Поиск по тестам скоро появится.', 'chart', true);
+        ) +
+        card(
+          'test-catalog',
+          'Посмотреть тесты',
+          'Найдите тест по названию или откройте свои.',
+          'chart',
+        );
   else if (student)
     choices = quiz
       ? card(

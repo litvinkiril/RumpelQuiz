@@ -13,7 +13,14 @@ export function renderEducation(state, notice) {
       <h2 tabindex="-1">${escapeHtml(state.selectedUniversity?.name || 'Учебное заведение')}</h2>
       <p class="subtitle">Выберите раздел для просмотра и управления.</p>
       ${notice}
-      <button type="button" class="secondary" data-action="people">Найти человека в вузе →</button>
+      <div class="university-actions">
+        <button type="button" class="primary" data-action="create-user">
+          + Создать пользователя
+        </button>
+        <button type="button" class="secondary" data-action="people">
+          Найти человека в вузе →
+        </button>
+      </div>
       <div class="university-sections">
         <button type="button" class="section-card" data-action="admins">
           <span class="section-icon" aria-hidden="true">♙</span>

@@ -13,7 +13,7 @@ export function createAuthController({
   game,
   tests,
   clearEducation,
-  resetQuizCatalog,
+  resetCatalogs,
   storage,
 }) {
   const setCode = (result, purpose) => {
@@ -152,7 +152,7 @@ export function createAuthController({
           clearEducation();
           game.resetGameView();
           tests.resetTestView();
-          resetQuizCatalog();
+          resetCatalogs();
           try {
             storage?.removeItem(AUTH_STORAGE_KEY);
           } catch {}

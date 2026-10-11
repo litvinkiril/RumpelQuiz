@@ -10,6 +10,10 @@ import pytest
     ('/vendor/qrcode.js', 'text/javascript', 'qrcode'),
     ('/assets/core/controller.js', 'text/javascript', 'createController'),
     ('/assets/features/profile/view.js', 'text/javascript', 'Описание'),
+    ('/assets/features/quizzes/preview.js', 'text/javascript', 'renderQuizPreview'),
+    ('/assets/features/user-creation/controller.js', 'text/javascript', 'createUserCreationController'),
+    ('/assets/features/user-creation/view.js', 'text/javascript', 'Создать пользователя'),
+    ('/assets/styles/users.css', 'text/css', 'user-create-form'),
     ('/assets/styles/home.css', 'text/css', '@media'),
 ])
 async def test_frontend_assets(service_client, path, content_type, marker):

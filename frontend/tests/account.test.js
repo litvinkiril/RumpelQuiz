@@ -30,9 +30,10 @@ for(const roles of [['teacher'],['admin'],['student','teacher'],['student','admi
  test('author sections offer creation and the quiz catalog for '+roles.join(', '),()=>{
   const state={accountRoles:roles,game:{session:{id:'game'}}};
   assert.deepEqual(actions(state),['create-quiz','quiz-catalog']);
-  assert.deepEqual(actions(state,'test-section'),['create-test']);
+  assert.deepEqual(actions(state,'test-section'),['create-test','test-catalog']);
   const tests=renderView({screen:'test-section',...state});
-  assert.match(tests,/<button[^>]*disabled[^>]*>[\s\S]*Посмотреть тесты/);
+  assert.match(tests,/data-action="test-catalog"/);
+  assert.doesNotMatch(tests,/Скоро|Поиск по тестам скоро появится/);
   const html=renderView({screen:'account',...state});
   assert.match(html,/data-nav="quiz-section"/);assert.match(html,/data-action="profile"/);
   assert.ok(!html.includes('Подключиться к сессии'));assert.ok(!html.includes('назначенные тесты'));assert.ok(!html.includes('game-resume'));
