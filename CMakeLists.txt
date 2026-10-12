@@ -50,6 +50,15 @@ add_library(
     src/education/structure/handlers/get_faculties_handler.cpp
     src/education/structure/handlers/get_programs_handler.cpp
     src/education/structure/handlers/get_groups_handler.cpp
+    src/education/search/handlers/search_programs_handler.cpp
+    src/education/search/handlers/search_groups_handler.cpp
+    src/education/search/service/education_search_service.cpp
+    src/education/search/repository/education_search_repository.cpp
+    src/education/creation/handlers/create_faculty_handler.cpp
+    src/education/creation/handlers/create_program_handler.cpp
+    src/education/creation/handlers/create_group_handler.cpp
+    src/education/creation/service/education_creation_service.cpp
+    src/education/creation/repository/education_creation_repository.cpp
     src/education/handlers/get_university_admins_handler.cpp
     src/demo/greeting/greeting.cpp
     src/demo/handlers/hello/hello_handler.cpp

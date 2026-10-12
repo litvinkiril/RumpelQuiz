@@ -1,46 +1,81 @@
 import { html, escapeHtml } from '../../shared/html.js';
 import { roleNames, personName, personAvatar } from '../../shared/people.js';
+import { icon } from '../../shared/icons.js';
+import { renderEducationCatalog } from './catalog.js';
+import { canCreateEducation } from './creation-model.js';
+import { renderEducationSearch } from './search-view.js';
+
+const universitySections = [
+  ['Факультеты', 'Просмотр списка факультетов и их структуры.', 'university', 'blue', 'faculties'],
+  [
+    'Программы',
+    'Образовательные программы и направления подготовки.',
+    'document',
+    'violet',
+    'programs',
+  ],
+  ['Группы', 'Учебные группы и студенты.', 'people', 'green', 'groups'],
+];
+const universityQuickActions = [
+  ['Создать группу', 'Добавить новую учебную группу', 'people', 'blue', 'groups'],
+  ['Создать программу', 'Добавить образовательную программу', 'document', 'violet', 'programs'],
+  ['Добавить факультет', 'Создать новый факультет', 'university', 'violet', 'faculties'],
+];
+
+function universityCard(
+  [title, description, symbol, color, kind],
+  compact = false,
+  available = true,
+) {
+  return html`<button
+    type="button"
+    class="university-card${compact ? ' university-card-compact' : ''}"
+    ${kind && available ? `data-action="${compact ? 'education-create' : 'education-catalog'}" data-kind="${kind}"` : 'disabled'}
+  >
+    <span class="university-card-icon university-card-icon-${color}" aria-hidden="true"
+      >${icon(symbol)}</span
+    >
+    <span class="university-card-copy"><strong>${title}</strong><span>${description}</span></span>
+    <span class="university-card-arrow" aria-hidden="true">${icon('arrow')}</span>
+  </button>`;
+}
+
 export function renderEducation(state, notice) {
   const { screen, busy } = state;
   let content;
   if (screen === 'university') {
-    content = html`<button type="button" class="text-button back" data-nav="profile">
-        ← Назад в профиль
-      </button>
-      <p class="step-label">
-        ${state.selectedUniversity?.adminScope === 'faculties' ? 'Администрирование факультетов' : state.selectedUniversity?.adminScope === 'university' ? 'Управление вузом' : 'Учебное заведение'}
-      </p>
-      <h2 tabindex="-1">${escapeHtml(state.selectedUniversity?.name || 'Учебное заведение')}</h2>
-      <p class="subtitle">Выберите раздел для просмотра и управления.</p>
-      ${notice}
-      <div class="university-actions">
-        <button type="button" class="primary" data-action="create-user">
-          + Создать пользователя
-        </button>
-        <button type="button" class="secondary" data-action="people">
-          Найти человека в вузе →
-        </button>
+    content = html`<div class="university-topline">
+        <button type="button" class="text-button back" data-nav="profile">← Назад в профиль</button>
+        <p class="step-label">
+          ${state.selectedUniversity?.adminScope === 'faculties' ? 'Администрирование факультетов' : state.selectedUniversity?.adminScope === 'university' ? 'Управление вузом' : 'Учебное заведение'}
+        </p>
       </div>
-      <div class="university-sections">
-        <button type="button" class="section-card" data-action="admins">
-          <span class="section-icon" aria-hidden="true">♙</span>
-          <span
-            ><strong>Посмотреть администраторов</strong
-            ><span class="section-description">Сотрудники и контакты</span></span
-          ><span class="section-arrow" aria-hidden="true">→</span>
-        </button>
-        ${[
-          ['Посмотреть преподавателей', 'Преподаватели и их группы'],
-          ['Посмотреть студентов', 'Студенты вашего вуза'],
-          ['Посмотреть группы', 'Учебные группы'],
-        ]
-          .map(
-            ([title, description]) => `
-          <button type="button" class="section-card" disabled><span class="section-icon" aria-hidden="true">▥</span>
-          <span><strong>${title}</strong><span class="section-description">${description}</span></span><span class="section-soon">Скоро</span></button>`,
-          )
-          .join('')}
-      </div>`;
+      <h2 tabindex="-1">${escapeHtml(state.selectedUniversity?.name || 'Учебное заведение')}</h2>
+      <p class="subtitle university-intro">
+        Управление структурой университета, факультетами, образовательными программами и учебными
+        группами.
+      </p>
+      ${notice}
+      <div class="university-section-grid" role="group" aria-label="Структура университета">
+        ${universitySections.map((section) => universityCard(section)).join('')}
+      </div>
+      ${renderEducationSearch(state)}
+      <section class="university-panel university-quick" aria-labelledby="university-quick-title">
+        <h3 id="university-quick-title">${icon('bolt')} Быстрые действия</h3>
+        <div class="university-quick-grid">
+          ${universityQuickActions.map((action) => universityCard(action, true, canCreateEducation(state, action[4]))).join('')}
+        </div>
+        <div class="university-user-tools" role="group" aria-label="Управление пользователями">
+          <span>Пользователи</span>
+          <button type="button" class="text-button" data-action="create-user">
+            Создать пользователя
+          </button>
+          <button type="button" class="text-button" data-action="admins">Администраторы</button>
+          <button type="button" class="text-button" data-action="people">Поиск людей</button>
+        </div>
+      </section>`;
+  } else if (screen === 'education-catalog') {
+    content = renderEducationCatalog(state, notice);
   } else if (screen === 'people') {
     content = html`<button type="button" class="text-button back" data-nav="university">
         ← К разделам вуза

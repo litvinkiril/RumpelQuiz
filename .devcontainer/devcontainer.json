@@ -35,6 +35,7 @@
   ],
   "build": {"dockerfile": "Dockerfile"},
   "mounts": [],
+  "initializeCommand": "docker compose up -d --wait postgres",
   "onCreateCommand": "sudo git config --global --add safe.directory /home/user/RumpelQuiz",
   "remoteUser": "user",
   "runArgs": [

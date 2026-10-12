@@ -35,7 +35,7 @@ function(embed_frontend frontend_dir output_file)
         endif()
 
         string(APPEND FRONTEND_ASSETS
-               "    {\"/${asset_path}\", \"${content_type}\", R\"RUMPEL_ASSET(${asset_content})RUMPEL_ASSET\"},\n")
+               "    {\"/${asset_path}\"sv, \"${content_type}\"sv, R\"RUMPEL_ASSET(${asset_content})RUMPEL_ASSET\"sv},\n")
     endforeach()
 
     configure_file("${frontend_dir}/../src/frontend/assets.hpp.in" "${output_file}" @ONLY)

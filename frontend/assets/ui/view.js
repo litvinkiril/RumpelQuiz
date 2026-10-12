@@ -2,6 +2,7 @@ import { html, escapeHtml } from '../shared/html.js';
 import { renderAuth } from '../features/auth/view.js';
 import { renderProfile } from '../features/profile/view.js';
 import { renderEducation } from '../features/education/view.js';
+import { renderEducationCreation } from '../features/education/creation-view.js';
 import { renderUserCreation } from '../features/user-creation/view.js';
 import { renderAccount, renderSection } from '../features/home/view.js';
 import { renderCatalog } from '../features/catalog/view.js';
@@ -19,6 +20,8 @@ const views = {
   password: renderAuth,
   profile: renderProfile,
   university: renderEducation,
+  'education-catalog': renderEducation,
+  'education-create': renderEducationCreation,
   people: renderEducation,
   admins: renderEducation,
   'user-create': renderUserCreation,
@@ -49,7 +52,7 @@ export function renderView(state) {
   const render = views[state.screen] || renderAccount;
   const content = render(state, notice);
   return html`<div
-    class="auth-card${state.screen === 'account' ? ' home-content' : ''}"
+    class="auth-card${state.screen === 'account' ? ' home-content' : state.screen === 'university' ? ' university-content' : ''}"
     aria-busy="${!!state.busy}"
   >
     ${content}

@@ -4,13 +4,38 @@ import { bindEvents } from './events.js';
 import { gameSeconds } from '../features/game/model.js';
 import { testSeconds } from '../features/tests/model.js';
 import { updateGameProgress } from '../features/game/view.js';
+import {
+  educationSearchPlaceholder,
+  renderEducationSearchResults,
+} from '../features/education/search-view.js';
 export function mountApp(root, options = {}) {
   let lastScreen = '';
   let lastGame = null;
   let lastContactId = null;
   let lastQuizId = null;
+  let lastEducationBusy = false;
+  let lastEducationPickerOpen = false;
+  let lastCreationBusy = false;
   let controller;
   const render = (state, change) => {
+    if (
+      change === 'education-search' &&
+      lastScreen === 'university' &&
+      state.screen === 'university'
+    ) {
+      const input = root.querySelector('[data-education-search-query]');
+      if (input.value !== state.educationSearchQuery) input.value = state.educationSearchQuery;
+      input.placeholder = educationSearchPlaceholder(state.educationSearchKind);
+      root.querySelectorAll('[name="university-search-type"]').forEach((radio) => {
+        radio.checked = radio.value === state.educationSearchKind;
+      });
+      const results = root.querySelector('#university-search-results');
+      results.hidden =
+        !state.educationSearchLoading && !state.educationSearchError && !state.educationSearchItems;
+      results.setAttribute('aria-busy', String(state.educationSearchLoading));
+      results.innerHTML = renderEducationSearchResults(state);
+      return;
+    }
     if (
       change === 'game-progress' &&
       lastScreen === 'game' &&
@@ -26,7 +51,10 @@ export function mountApp(root, options = {}) {
       return;
     }
     // Keep values across the busy/error render, never in storage.
-    const values = new Map([...root.querySelectorAll('input')].map((el) => [el.name, el.value]));
+    const valueInputs = 'input:not([type="radio"]):not([type="checkbox"])';
+    const values = new Map(
+      [...root.querySelectorAll(valueInputs)].map((el) => [el.name, el.value]),
+    );
     const focusName = root.ownerDocument.activeElement?.getAttribute('name');
     const focusId = root.ownerDocument.activeElement?.id;
     root.innerHTML = renderView(state);
@@ -37,6 +65,8 @@ export function mountApp(root, options = {}) {
       'test-catalog',
       'profile',
       'university',
+      'education-catalog',
+      'education-create',
       'user-create',
       'admins',
       'people',
@@ -57,6 +87,7 @@ export function mountApp(root, options = {}) {
     ].includes(state.screen);
     root.ownerDocument.body.classList.toggle('signed-in', signedIn);
     root.ownerDocument.body.classList.toggle('home-screen', state.screen === 'account');
+    root.ownerDocument.body.classList.toggle('university-screen', state.screen === 'university');
     const nav = root.ownerDocument.getElementById('account-nav');
     if (nav) {
       nav.hidden = !signedIn;
@@ -67,7 +98,15 @@ export function mountApp(root, options = {}) {
         .querySelector('[data-action="profile"]')
         ?.setAttribute(
           'aria-current',
-          ['profile', 'university', 'user-create', 'admins', 'people'].includes(state.screen)
+          [
+            'profile',
+            'university',
+            'education-catalog',
+            'education-create',
+            'user-create',
+            'admins',
+            'people',
+          ].includes(state.screen)
             ? 'page'
             : 'false',
         );
@@ -120,11 +159,13 @@ export function mountApp(root, options = {}) {
       if (password && values.has('new-user-password'))
         password.value = values.get('new-user-password');
       if (focusId) root.ownerDocument.getElementById(focusId)?.focus({ preventScroll: true });
+    } else if (lastScreen === 'education-create' && state.screen === 'education-create') {
+      if (focusId) root.ownerDocument.getElementById(focusId)?.focus({ preventScroll: true });
     } else if (
       lastScreen === state.screen &&
       !['quiz', 'test', 'test-play'].includes(state.screen)
     ) {
-      for (const el of root.querySelectorAll('input'))
+      for (const el of root.querySelectorAll(valueInputs))
         if (values.has(el.name)) el.value = values.get(el.name);
       const focus = [...root.querySelectorAll('input')].find((el) => el.name === focusName);
       focus?.focus();
@@ -135,6 +176,33 @@ export function mountApp(root, options = {}) {
     } else {
       root.querySelector('[tabindex="-1"]')?.focus();
     }
+    if (
+      state.screen === 'education-catalog' &&
+      lastScreen === state.screen &&
+      !state.busy &&
+      (lastEducationBusy || state.educationFacultyPickerOpen !== lastEducationPickerOpen)
+    ) {
+      const focus = state.educationFacultyPickerOpen
+        ? root.querySelector('#education-faculty-options button')
+        : root.querySelector('.education-faculty-toggle');
+      focus?.focus({ preventScroll: true });
+    }
+    lastEducationBusy = state.screen === 'education-catalog' && state.busy;
+    lastEducationPickerOpen =
+      state.screen === 'education-catalog' && state.educationFacultyPickerOpen;
+    if (state.screen === 'education-create' && lastCreationBusy && !state.busy) {
+      const focus = state.educationCreationSaved
+        ? root.querySelector('h2')
+        : state.educationCreationRequest === 'programs'
+          ? root.querySelector('#education-new-program') ||
+            root.querySelector('[data-action="education-creation-programs"]')
+          : state.educationCreationRequest === 'faculties'
+            ? root.querySelector('#education-new-faculty') ||
+              root.querySelector('[data-action="education-creation-faculties"]')
+            : root.querySelector('#education-new-name');
+      focus?.focus({ preventScroll: true });
+    }
+    lastCreationBusy = state.screen === 'education-create' && state.busy;
     lastScreen = state.screen;
     lastGame = state.game;
     for (const el of root.querySelectorAll('input,button'))
@@ -213,12 +281,14 @@ export function mountApp(root, options = {}) {
     !(
       (controller.state.quizDirty && controller.state.screen === 'quiz') ||
       (controller.state.testDirty && controller.state.screen === 'test') ||
+      (controller.state.educationCreationDirty && controller.state.screen === 'education-create') ||
       (controller.state.userCreationDirty && controller.state.screen === 'user-create')
     ) || root.ownerDocument.defaultView.confirm('Есть несохранённые изменения. Выйти со страницы?');
   const beforeUnload = (event) => {
     if (
       (controller.state.screen === 'quiz' && controller.state.quizDirty) ||
       (controller.state.screen === 'test' && controller.state.testDirty) ||
+      (controller.state.screen === 'education-create' && controller.state.educationCreationDirty) ||
       (controller.state.screen === 'user-create' && controller.state.userCreationDirty)
     ) {
       event.preventDefault();
@@ -237,6 +307,7 @@ export function mountApp(root, options = {}) {
     canLeave,
     destroy: () => {
       clearInterval(interval);
+      controller.resetEducationSearch();
       controller.resetGameView();
       root.ownerDocument.defaultView.removeEventListener('beforeunload', beforeUnload);
       root.ownerDocument.defaultView.removeEventListener('pagehide', pageHide);

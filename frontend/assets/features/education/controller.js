@@ -1,5 +1,26 @@
 import { ApiError } from '../../core/api.js';
 import { messages } from '../../core/messages.js';
+
+const catalogKinds = ['faculties', 'programs', 'groups'];
+const catalogLoadErrors = {
+  faculties: 'Не удалось загрузить факультеты. Попробуйте ещё раз.',
+  programs: 'Не удалось загрузить программы. Попробуйте ещё раз.',
+  groups: 'Не удалось загрузить группы. Попробуйте ещё раз.',
+};
+
+function catalogItems(result, kind) {
+  const items = result?.[kind];
+  if (
+    result?.success !== true ||
+    !Array.isArray(items) ||
+    items.some(
+      (item) => !item || typeof item.id !== 'string' || !item.id || typeof item.name !== 'string',
+    )
+  )
+    throw new ApiError(catalogLoadErrors[kind]);
+  return items;
+}
+
 export function createEducationController({
   state,
   authorized,
@@ -7,10 +28,103 @@ export function createEducationController({
   emit,
   fail,
   clearEducation,
+  clearEducationCreation,
   clearPeople,
   cancelPending,
 }) {
+  const canLoadCatalog = () =>
+    !state.busy &&
+    state.token &&
+    state.selectedUniversity &&
+    state.screen === 'education-catalog' &&
+    catalogKinds.includes(state.educationCatalogKind);
+  const loadEducationCatalog = () => {
+    if (!canLoadCatalog()) return Promise.resolve(false);
+    const kind = state.educationCatalogKind;
+    const universityId = state.selectedUniversity.id;
+    const query = new URLSearchParams(
+      kind !== 'faculties' && state.educationCatalogFacultyId
+        ? { facultet_id: state.educationCatalogFacultyId }
+        : { university_id: universityId },
+    );
+    state.educationCatalogItems = null;
+    state.educationCatalogRequest = 'items';
+    return run(
+      () => authorized('education/' + kind + '?' + query),
+      (result) => {
+        const items = catalogItems(result, kind);
+        state.educationCatalogItems = items;
+        if (kind === 'faculties') state.facultyCache[universityId] = items;
+      },
+    );
+  };
+  const loadEducationCatalogFaculties = () => {
+    if (!canLoadCatalog() || state.educationCatalogKind === 'faculties')
+      return Promise.resolve(false);
+    const universityId = state.selectedUniversity.id;
+    state.educationFacultyPickerOpen = true;
+    state.error = '';
+    state.success = '';
+    if (Object.hasOwn(state.facultyCache, universityId)) {
+      emit();
+      return Promise.resolve(true);
+    }
+    state.educationCatalogRequest = 'faculties';
+    const query = new URLSearchParams({ university_id: universityId });
+    return run(
+      () => authorized('education/faculties?' + query),
+      (result) => {
+        state.facultyCache[universityId] = catalogItems(result, 'faculties');
+      },
+    );
+  };
   return {
+    loadEducationCatalog,
+    loadEducationCatalogFaculties,
+    openEducationCatalog(kind) {
+      if (
+        state.busy ||
+        !state.token ||
+        !state.selectedUniversity ||
+        !['university', 'education-catalog', 'education-create'].includes(state.screen) ||
+        !catalogKinds.includes(kind)
+      )
+        return Promise.resolve(false);
+      cancelPending();
+      clearEducationCreation();
+      clearPeople();
+      state.selectedAdmin = null;
+      state.educationCatalogKind = kind;
+      state.educationCatalogItems = null;
+      state.educationCatalogFacultyId = '';
+      state.educationFacultyPickerOpen = false;
+      state.screen = 'education-catalog';
+      return loadEducationCatalog();
+    },
+    toggleEducationFacultyPicker() {
+      if (!canLoadCatalog() || state.educationCatalogKind === 'faculties')
+        return Promise.resolve(false);
+      if (!state.educationFacultyPickerOpen) return loadEducationCatalogFaculties();
+      state.educationFacultyPickerOpen = false;
+      state.error = '';
+      emit();
+      return Promise.resolve(true);
+    },
+    selectEducationFaculty(facultyId) {
+      if (!canLoadCatalog() || state.educationCatalogKind === 'faculties')
+        return Promise.resolve(false);
+      const faculties = state.facultyCache[state.selectedUniversity.id];
+      if (facultyId !== '' && !faculties?.some((faculty) => faculty.id === facultyId))
+        return Promise.resolve(false);
+      state.educationFacultyPickerOpen = false;
+      if (facultyId === state.educationCatalogFacultyId && state.educationCatalogItems !== null) {
+        state.error = '';
+        emit();
+        return Promise.resolve(true);
+      }
+      state.educationCatalogFacultyId = facultyId;
+      return loadEducationCatalog();
+    },
     openUniversity(universityId) {
       if (state.busy || !state.token) return false;
       const position = state.profile?.university_position.find(
@@ -94,6 +208,7 @@ export function createEducationController({
     },
     openAdmins() {
       if (state.busy || !state.token || !state.selectedUniversity) return Promise.resolve(false);
+      cancelPending();
       const universityId = state.selectedUniversity.id;
       state.screen = 'admins';
       state.admins = null;

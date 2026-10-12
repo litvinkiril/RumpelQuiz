@@ -32,11 +32,12 @@ test('admin university opens local menu; student card cannot open admin menu', (
   assert.equal(controller.state.screen, 'university');
   assert.deepEqual(controller.state.selectedUniversity, {id: 'hse', name: 'ВШЭ', adminScope: 'university'});
   const html = renderView(controller.state);
-  assert.match(html, /Посмотреть администраторов/);
-  assert.match(html, /Посмотреть преподавателей/);
-  assert.match(html, /Посмотреть студентов/);
-  assert.match(html, /Посмотреть группы/);
-  assert.equal((html.match(/class="section-card" disabled/g) || []).length, 3);
+  assert.match(html, /<h2 tabindex="-1">ВШЭ<\/h2>/);
+  for (const title of ['Факультеты', 'Программы', 'Группы', 'Поиск', 'Быстрые действия'])
+    assert.ok(html.includes(title));
+  assert.ok(!html.includes('Мои группы'));
+  assert.match(html, /data-action="admins"/);
+  assert.match(html, /data-action="people"/);
   controller.navigate('profile');
   assert.equal(controller.state.profile, profile);
   assert.equal(controller.state.selectedUniversity, null);

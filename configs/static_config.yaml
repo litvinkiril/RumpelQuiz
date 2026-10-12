@@ -129,6 +129,52 @@ components_manager:
 
         education-structure-service: {}
 
+        education-search-service: {}
+
+        handler-search-programs:
+            path: /v1/education/search/programs
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+
+        handler-search-groups:
+            path: /v1/education/search/groups
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+
+        education-creation-service: {}
+
+        handler-create-faculty:
+            path: /v1/education/faculties
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 16384
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-create-program:
+            path: /v1/education/programs
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 16384
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
+        handler-create-group:
+            path: /v1/education/groups
+            method: POST
+            task_processor: main-task-processor
+            max_request_size: 16384
+            request_body_size_log_limit: 0
+            response_data_size_log_limit: 0
+            auth:
+                types: [jwt]
+
         handler-get-faculties:
             path: /v1/education/faculties
             method: GET

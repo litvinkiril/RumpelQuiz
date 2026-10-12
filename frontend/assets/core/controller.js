@@ -5,6 +5,8 @@ import { readAccountRoles } from '../shared/roles.js';
 import { createAuthController } from '../features/auth/controller.js';
 import { createProfileController } from '../features/profile/controller.js';
 import { createEducationController } from '../features/education/controller.js';
+import { createEducationSearchController } from '../features/education/search.js';
+import { createEducationCreationController } from '../features/education/creation.js';
 import { createUserCreationController } from '../features/user-creation/controller.js';
 import { createQuizController } from '../features/quizzes/controller.js';
 import { createCatalogController } from '../features/catalog/controller.js';
@@ -47,8 +49,27 @@ export function createController({
     state.userFaculties = null;
     state.userCreationDirty = false;
   };
+  const clearEducationCatalog = () => {
+    state.educationCatalogKind = '';
+    state.educationCatalogItems = null;
+    state.educationCatalogFacultyId = '';
+    state.educationFacultyPickerOpen = false;
+    state.educationCatalogRequest = '';
+  };
+  const clearEducationCreation = () => {
+    state.educationCreationKind = '';
+    state.educationCreationDraft = null;
+    state.educationCreationFaculties = null;
+    state.educationCreationPrograms = null;
+    state.educationCreationSaved = null;
+    state.educationCreationDirty = false;
+    state.educationCreationRequest = '';
+  };
   const clearEducation = () => {
+    educationSearch.resetEducationSearch();
     clearUserForm();
+    clearEducationCatalog();
+    clearEducationCreation();
     state.facultyCache = {};
     clearPeople();
     state.selectedUniversity = null;
@@ -179,6 +200,7 @@ export function createController({
     testLink,
   });
 
+  const educationSearch = createEducationSearchController({ state, api, emit });
   const context = {
     state,
     api,
@@ -189,13 +211,19 @@ export function createController({
     now,
     storage,
     clearEducation,
+    clearEducationCatalog,
+    clearEducationCreation,
     clearPeople,
     resetCatalogs,
-    cancelPending: () => ++sequence,
+    cancelPending: () => {
+      educationSearch.resetEducationSearch();
+      return ++sequence;
+    },
   };
   const auth = createAuthController({ ...context, authenticate, setAccount, game, tests });
   const profile = createProfileController(context);
   const education = createEducationController(context);
+  const educationCreation = createEducationCreationController(context);
   const userCreation = createUserCreationController(context);
   const quizzes = createQuizController(context);
   const catalog = createCatalogController(context);
@@ -203,6 +231,8 @@ export function createController({
     ...auth,
     ...profile,
     ...education,
+    ...educationSearch,
+    ...educationCreation,
     ...userCreation,
     ...quizzes,
     ...catalog,
@@ -225,7 +255,10 @@ export function createController({
     },
     navigate(screen) {
       if (['quiz-section', 'test-section'].includes(screen) && state.token) {
+        educationSearch.resetEducationSearch();
         clearUserForm();
+        clearEducationCatalog();
+        clearEducationCreation();
         ++sequence;
         state.busy = false;
         state.screen = screen;
@@ -245,8 +278,11 @@ export function createController({
         return;
       }
       if (screen === 'university' && state.token && state.selectedUniversity) {
+        educationSearch.resetEducationSearch();
         clearUserForm();
         clearPeople();
+        clearEducationCatalog();
+        clearEducationCreation();
         ++sequence;
         state.busy = false;
         state.screen = 'university';

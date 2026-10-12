@@ -2,6 +2,14 @@ import { testQuestionComplete } from '../features/tests/model.js';
 import { questionComplete } from '../features/quizzes/model.js';
 export function bindEvents({ root, controller, render, canLeave }) {
   root.addEventListener('input', (event) => {
+    if (event.target.hasAttribute('data-education-search-query')) {
+      controller.editEducationSearchQuery(event.target.value, event.isComposing);
+      return;
+    }
+    if (event.target.hasAttribute('data-education-name')) {
+      controller.editEducationName(event.target.value);
+      return;
+    }
     if (event.target.dataset.userField) {
       controller.editNewUser(event.target.dataset.userField, event.target.value);
       return;
@@ -52,6 +60,18 @@ export function bindEvents({ root, controller, render, canLeave }) {
     if (dirty) dirty.textContent = 'Есть несохранённые изменения';
   });
   root.addEventListener('change', (event) => {
+    if (event.target.name === 'university-search-type') {
+      void controller.selectEducationSearchKind(event.target.value);
+      return;
+    }
+    if (event.target.hasAttribute('data-education-faculty')) {
+      void controller.selectEducationCreationFaculty(event.target.value);
+      return;
+    }
+    if (event.target.hasAttribute('data-education-program')) {
+      controller.selectEducationCreationProgram(event.target.value);
+      return;
+    }
     if (event.target.hasAttribute('data-user-role')) {
       void controller.selectNewUserRole(event.target.value);
       return;
@@ -109,6 +129,15 @@ export function bindEvents({ root, controller, render, canLeave }) {
     event.preventDefault();
     if (controller.state.busy) return;
     const form = event.target;
+    if (form.dataset.form === 'education-search') {
+      const input = form.querySelector('[data-education-search-query]');
+      void controller.searchEducation(input.value);
+      return;
+    }
+    if (form.dataset.form === 'education-create') {
+      if (form.reportValidity()) void controller.createEducationItem();
+      return;
+    }
     if (form.dataset.form === 'user-create') {
       if (form.reportValidity())
         void controller.createUser(new FormData(form).get('new-user-password'));
@@ -192,6 +221,8 @@ export function bindEvents({ root, controller, render, canLeave }) {
         'game-resume',
         'profile',
         'create-user',
+        'education-create',
+        'education-catalog',
         'logout',
       ].includes(action) &&
       !canLeave()
@@ -264,6 +295,21 @@ export function bindEvents({ root, controller, render, canLeave }) {
     if (button.dataset.action === 'profile') void controller.openProfile();
     if (button.dataset.action === 'university')
       controller.openUniversity(button.dataset.universityId);
+    if (action === 'education-catalog') void controller.openEducationCatalog(button.dataset.kind);
+    if (action === 'education-search-query') {
+      void controller.searchEducation(button.dataset.query, button.dataset.kind);
+      root.querySelector('[data-education-search-query]')?.focus({ preventScroll: true });
+    }
+    if (action === 'education-search-retry') void controller.searchEducation();
+    if (action === 'education-create') void controller.openEducationCreation(button.dataset.kind);
+    if (action === 'education-creation-faculties')
+      void controller.loadEducationCreationFaculties(true);
+    if (action === 'education-creation-programs') void controller.loadEducationCreationPrograms();
+    if (action === 'education-catalog-retry') void controller.loadEducationCatalog();
+    if (action === 'education-faculty-picker') void controller.toggleEducationFacultyPicker();
+    if (action === 'education-faculties-retry') void controller.loadEducationCatalogFaculties();
+    if (action === 'education-faculty')
+      void controller.selectEducationFaculty(button.dataset.facultyId);
     if (button.dataset.action === 'admins') void controller.openAdmins();
     if (button.dataset.action === 'people') controller.openPeople();
     if (button.dataset.action === 'more-people') void controller.searchPeople('', true);

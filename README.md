@@ -18,10 +18,11 @@ docker compose up -d --wait postgres
 docker compose ps
 ```
 
-Open the Dev Container and start the backend there:
+Open this folder in VS Code and choose **Dev Containers: Reopen in Container**.
+The Dev Container automatically starts PostgreSQL and waits until it is ready.
+In the container terminal, build and start the backend with one command:
 
 ```console
-make build-debug
 make start-debug
 ```
 
@@ -83,7 +84,7 @@ can also be `debug-custom`, `release-custom`.
 * `make cmake-PRESET` - run cmake configure, update cmake options and source file lists
 * `make build-PRESET` - build the service
 * `make test-PRESET` - build the service and run all tests
-* `make start-PRESET` - build the service, start it in testsuite environment and leave it running
+* `make start-PRESET` - build the service, start it with the persistent development database and leave it running
 * `make install-PRESET` - build the service and install it in directory set in environment `PREFIX`
 * `make` or `make all` - build and run all tests in `debug` and `release` modes
 * `make format` - reformat all C++ and Python sources
