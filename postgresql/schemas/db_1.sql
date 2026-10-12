@@ -665,4 +665,81 @@ CREATE TABLE IF NOT EXISTS test.answers (
  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
  question_id UUID NOT NULL REFERENCES test.questions(id) ON DELETE CASCADE,
  text TEXT NOT NULL DEFAULT '', is_correct BOOLEAN NOT NULL DEFAULT FALSE,
- image_id UUID                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+ image_id UUID REFERENCES media.images(id) ON DELETE RESTRICT,
+ position INTEGER NOT NULL CHECK(position >= 0),
+ UNIQUE(question_id,position) DEFERRABLE INITIALLY DEFERRED,
+ UNIQUE(id,question_id)
+);
+CREATE INDEX IF NOT EXISTS test_questions_image_idx ON test.questions(image_id) WHERE image_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS test_answers_image_idx ON test.answers(image_id) WHERE image_id IS NOT NULL;
+-- One attempt per student/test for now. Resuming never resets the deadline.
+CREATE TABLE IF NOT EXISTS test.test_in_process (
+ id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+ test_id UUID NOT NULL REFERENCES test.tests(id) ON DELETE RESTRICT,
+ student_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE RESTRICT,
+ current_question_id UUID,
+ started_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+ deadline_at TIMESTAMPTZ NOT NULL,
+ status TEXT NOT NULL DEFAULT 'in_progress' CHECK(status IN ('in_progress','completed','expired')),
+ finished_at TIMESTAMPTZ,
+ UNIQUE(id,test_id),
+ FOREIGN KEY(current_question_id,test_id) REFERENCES test.questions(id,test_id) ON DELETE RESTRICT,
+ CHECK(deadline_at > started_at),
+ CHECK((status='in_progress' AND current_question_id IS NOT NULL AND finished_at IS NULL)
+    OR (status IN ('completed','expired') AND current_question_id IS NULL AND finished_at IS NOT NULL)),
+ CHECK(finished_at IS NULL OR finished_at >= started_at)
+);
+-- Also supports the pre-existing manually prepared test schema.
+CREATE UNIQUE INDEX IF NOT EXISTS test_progress_test_student_key ON test.test_in_process(test_id,student_id);
+CREATE INDEX IF NOT EXISTS test_progress_student_idx ON test.test_in_process(student_id);
+CREATE TABLE IF NOT EXISTS test.student_answers (
+ id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+ process_id UUID NOT NULL,
+ test_id UUID NOT NULL,
+ question_id UUID NOT NULL,
+ submitted_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+ UNIQUE(process_id,question_id), UNIQUE(id,question_id),
+ FOREIGN KEY(process_id,test_id) REFERENCES test.test_in_process(id,test_id) ON DELETE RESTRICT,
+ FOREIGN KEY(question_id,test_id) REFERENCES test.questions(id,test_id) ON DELETE RESTRICT
+);
+CREATE TABLE IF NOT EXISTS test.student_answer_choices (
+ student_answer_id UUID NOT NULL,
+ question_id UUID NOT NULL,
+ answer_id UUID NOT NULL,
+ PRIMARY KEY(student_answer_id,answer_id),
+ FOREIGN KEY(student_answer_id,question_id) REFERENCES test.student_answers(id,question_id) ON DELETE RESTRICT,
+ FOREIGN KEY(answer_id,question_id) REFERENCES test.answers(id,question_id) ON DELETE RESTRICT
+);
+COMMIT;
+
+-- END TEST SCHEMA
+
+-- BEGIN TEST FAVOURITES SCHEMA
+-- Match the favourites table also used by manually prepared development databases.
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+SELECT pg_advisory_xact_lock(60421, 8);
+CREATE TABLE IF NOT EXISTS test.favourites (
+ user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+ test_id UUID NOT NULL REFERENCES test.tests(id) ON DELETE CASCADE,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ PRIMARY KEY(user_id,test_id)
+);
+CREATE INDEX IF NOT EXISTS favourites_test_idx ON test.favourites(test_id);
+COMMIT;
+-- END TEST FAVOURITES SCHEMA
+
+-- BEGIN QUIZ FAVOURITES SCHEMA
+-- Match the favourites table also used by manually prepared development databases.
+BEGIN;
+SET LOCAL lock_timeout = '5s';
+SELECT pg_advisory_xact_lock(60421, 9);
+CREATE TABLE IF NOT EXISTS quiz.favourites (
+ user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+ quiz_id UUID NOT NULL REFERENCES quiz.quizzes(id) ON DELETE CASCADE,
+ created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+ PRIMARY KEY(user_id,quiz_id)
+);
+CREATE INDEX IF NOT EXISTS favourites_quiz_idx ON quiz.favourites(quiz_id);
+COMMIT;
+-- END QUIZ FAVOURITES SCHEMA
