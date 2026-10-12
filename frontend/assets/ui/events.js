@@ -192,6 +192,8 @@ export function bindEvents({ root, controller, render, canLeave }) {
   root.addEventListener('click', (event) => {
     const button = event.target.closest('button');
     if (!button || button.disabled) return;
+    // Group actions are placeholders until their handlers are implemented.
+    if (button.dataset.groupPlaceholder) return;
     if (button.dataset.nav) {
       if (canLeave()) controller.navigate(button.dataset.nav);
       return;
@@ -296,6 +298,8 @@ export function bindEvents({ root, controller, render, canLeave }) {
     if (button.dataset.action === 'university')
       controller.openUniversity(button.dataset.universityId);
     if (action === 'education-catalog') void controller.openEducationCatalog(button.dataset.kind);
+    if (action === 'group') void controller.openGroup(button.dataset.groupId);
+    if (action === 'group-retry') void controller.loadGroupMembers();
     if (action === 'education-search-query') {
       void controller.searchEducation(button.dataset.query, button.dataset.kind);
       root.querySelector('[data-education-search-query]')?.focus({ preventScroll: true });

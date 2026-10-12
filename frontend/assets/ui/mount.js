@@ -65,6 +65,7 @@ export function mountApp(root, options = {}) {
       'test-catalog',
       'profile',
       'university',
+      'group',
       'education-catalog',
       'education-create',
       'user-create',
@@ -88,6 +89,7 @@ export function mountApp(root, options = {}) {
     root.ownerDocument.body.classList.toggle('signed-in', signedIn);
     root.ownerDocument.body.classList.toggle('home-screen', state.screen === 'account');
     root.ownerDocument.body.classList.toggle('university-screen', state.screen === 'university');
+    root.ownerDocument.body.classList.toggle('group-screen', state.screen === 'group');
     const nav = root.ownerDocument.getElementById('account-nav');
     if (nav) {
       nav.hidden = !signedIn;
@@ -101,6 +103,7 @@ export function mountApp(root, options = {}) {
           [
             'profile',
             'university',
+            'group',
             'education-catalog',
             'education-create',
             'user-create',

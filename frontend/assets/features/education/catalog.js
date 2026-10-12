@@ -101,15 +101,26 @@ export function renderEducationCatalog(state, notice) {
                 items.length
                   ? html`<ul class="education-catalog-list" aria-label="${section.title}">
                       ${items
-                        .map(
-                          (item) =>
-                            html`<li class="education-catalog-item">
-                              <span class="education-catalog-icon" aria-hidden="true"
-                                >${icon(section.symbol)}</span
-                              >
-                              <span>${escapeHtml(item.name)}</span>
-                            </li>`,
-                        )
+                        .map((item) => {
+                          const contents = html`
+                            <span class="education-catalog-icon" aria-hidden="true"
+                              >${icon(section.symbol)}</span
+                            >
+                            <span>${escapeHtml(item.name)}</span>
+                          `;
+                          return kind === 'groups'
+                            ? html`<li>
+                                <button
+                                  type="button"
+                                  class="education-catalog-item education-group-link"
+                                  data-action="group"
+                                  data-group-id="${escapeHtml(item.id)}"
+                                >
+                                  ${contents}
+                                </button>
+                              </li>`
+                            : html`<li class="education-catalog-item">${contents}</li>`;
+                        })
                         .join('')}
                     </ul>`
                   : html`<p class="empty-list">

@@ -43,16 +43,19 @@
   outline: 3px solid #8c75e8;
   outline-offset: 4px;
 }
-.signed-in.university-screen {
+.signed-in.university-screen,
+.signed-in.group-screen {
   background: #f4f6fd;
 }
-.signed-in.university-screen .layout {
+.signed-in.university-screen .layout,
+.signed-in.group-screen .layout {
   max-width: 1248px;
   background: transparent;
   border: 0;
   box-shadow: none;
 }
-.signed-in.university-screen .workspace {
+.signed-in.university-screen .workspace,
+.signed-in.group-screen .workspace {
   padding: 24px 32px 32px;
   background: transparent;
 }
@@ -560,6 +563,263 @@ form.university-search-controls {
 .education-catalog-icon svg {
   width: 26px;
   height: 26px;
+}
+.education-group-link {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: #fdfcfe;
+  cursor: pointer;
+}
+.education-group-link:hover {
+  background: #f6f3ff;
+  border-color: #b8a6f4;
+}
+.education-group-link:focus-visible {
+  outline: 3px solid #a99af9;
+  outline-offset: 3px;
+}
+.signed-in .group-content {
+  max-width: 1000px;
+  margin: 0 auto;
+  color: #101237;
+}
+.group-header,
+.group-heading {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+.group-header {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin: 20px 0 28px;
+}
+.group-heading > div {
+  min-width: 0;
+}
+.group-heading h2 {
+  margin: 0;
+  font-size: clamp(28px, 3.5vw, 38px);
+  overflow-wrap: anywhere;
+}
+.group-heading p {
+  margin: 6px 0 0;
+  color: #747fa9;
+  font-size: 16px;
+}
+.group-symbol {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  background: #ede9ff;
+  color: #5339ff;
+}
+.group-symbol svg {
+  width: 34px;
+  height: 34px;
+}
+.primary.group-homework {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: auto;
+  margin: 0;
+  padding: 14px 20px;
+  background: #5339ff;
+}
+.group-homework svg {
+  width: 23px;
+  height: 23px;
+  flex-shrink: 0;
+}
+.group-section {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid #e1e7f5;
+  border-radius: 16px;
+  background: #ffffffdb;
+}
+.group-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  font-size: 21px;
+}
+.group-member-count {
+  padding: 3px 9px;
+  border-radius: 9px;
+  background: #eeedff;
+  color: #59658f;
+  font-size: 14px;
+}
+.group-member-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.group-member {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid #e1e7f5;
+  border-radius: 13px;
+  background: white;
+}
+.group-member-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  padding: 16px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+button.group-member-main:hover {
+  background: #f6f3ff;
+}
+.group-member .person-avatar {
+  border-radius: 50%;
+}
+.group-member-info {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.group-member-info strong {
+  font-size: 16px;
+  line-height: 1.4;
+}
+.group-member-info > span {
+  color: #747fa9;
+  font-size: 13px;
+}
+.group-member-chevron {
+  margin-left: auto;
+  color: #5339ff;
+  font-size: 26px;
+}
+.group-member-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 12px 14px 12px 0;
+}
+.group-member-action {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  padding: 9px;
+  border: 1px solid #d9deeb;
+  border-radius: 11px;
+  background: linear-gradient(145deg, #ffffff, #edf0f6);
+  color: #747fa0;
+  box-shadow:
+    inset 1px 1px 2px white,
+    0 2px 4px #10123708;
+}
+.group-member-action svg {
+  width: 23px;
+  height: 23px;
+}
+.group-member-action[data-group-placeholder='homework'] svg {
+  fill: currentColor;
+  stroke: #f4f6fb;
+  stroke-width: 1.2;
+}
+.group-member-action:hover {
+  border-color: #b8a6f4;
+  color: #5339ff;
+}
+.group-member-action[data-group-placeholder='remove']:hover {
+  border-color: #e1a4b0;
+  color: #a02845;
+}
+.group-add-member {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 16px;
+  border: 1px solid #aa99fa;
+  border-radius: 11px;
+  background: #f7f5ff;
+  color: #5339ff;
+  font-size: 15px;
+  font-weight: 600;
+}
+.group-add-member > span {
+  font-size: 23px;
+  line-height: 1;
+}
+.group-add-member:hover {
+  background: #ede9ff;
+}
+.group-page button:focus-visible {
+  outline: 3px solid #a99af9;
+  outline-offset: 3px;
+}
+.group-empty {
+  margin: 0;
+  padding: 14px 0;
+  color: #747fa9;
+  font-size: 14px;
+}
+@media (max-width: 540px) {
+  .signed-in.group-screen .workspace {
+    padding: 24px 14px;
+  }
+  .group-header {
+    align-items: stretch;
+  }
+  .primary.group-homework {
+    width: 100%;
+  }
+  .group-section {
+    padding: 14px 10px;
+  }
+  .group-section h3 {
+    font-size: 19px;
+  }
+  .group-member-main {
+    gap: 10px;
+    padding: 12px 8px;
+  }
+  .group-member .person-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+  .group-member-info strong {
+    font-size: 14px;
+  }
+  .group-member-actions {
+    gap: 5px;
+    padding-right: 8px;
+  }
+  .group-member-action {
+    width: 36px;
+    height: 36px;
+    padding: 6px;
+  }
 }
 .education-create-form {
   margin-top: 28px;

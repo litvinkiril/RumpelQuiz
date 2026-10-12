@@ -5,6 +5,7 @@ import { readAccountRoles } from '../shared/roles.js';
 import { createAuthController } from '../features/auth/controller.js';
 import { createProfileController } from '../features/profile/controller.js';
 import { createEducationController } from '../features/education/controller.js';
+import { createGroupController } from '../features/education/group.js';
 import { createEducationSearchController } from '../features/education/search.js';
 import { createEducationCreationController } from '../features/education/creation.js';
 import { createUserCreationController } from '../features/user-creation/controller.js';
@@ -65,7 +66,13 @@ export function createController({
     state.educationCreationDirty = false;
     state.educationCreationRequest = '';
   };
+  const clearGroup = () => {
+    state.selectedGroup = null;
+    state.groupMembers = null;
+    state.groupReturn = null;
+  };
   const clearEducation = () => {
+    clearGroup();
     educationSearch.resetEducationSearch();
     clearUserForm();
     clearEducationCatalog();
@@ -213,6 +220,7 @@ export function createController({
     clearEducation,
     clearEducationCatalog,
     clearEducationCreation,
+    clearGroup,
     clearPeople,
     resetCatalogs,
     cancelPending: () => {
@@ -223,6 +231,7 @@ export function createController({
   const auth = createAuthController({ ...context, authenticate, setAccount, game, tests });
   const profile = createProfileController(context);
   const education = createEducationController(context);
+  const group = createGroupController(context);
   const educationCreation = createEducationCreationController(context);
   const userCreation = createUserCreationController(context);
   const quizzes = createQuizController(context);
@@ -231,6 +240,7 @@ export function createController({
     ...auth,
     ...profile,
     ...education,
+    ...group,
     ...educationSearch,
     ...educationCreation,
     ...userCreation,
@@ -254,7 +264,12 @@ export function createController({
       );
     },
     navigate(screen) {
+      if (screen === 'group-return') {
+        group.returnFromGroup();
+        return;
+      }
       if (['quiz-section', 'test-section'].includes(screen) && state.token) {
+        clearGroup();
         educationSearch.resetEducationSearch();
         clearUserForm();
         clearEducationCatalog();
@@ -278,6 +293,7 @@ export function createController({
         return;
       }
       if (screen === 'university' && state.token && state.selectedUniversity) {
+        clearGroup();
         educationSearch.resetEducationSearch();
         clearUserForm();
         clearPeople();

@@ -24,7 +24,11 @@ export const personAvatar = (person) => {
   >`;
 };
 export const membershipCard = (position) => {
-  const clickable = position.role === 'admin' && position.university_id;
+  const studentGroup =
+    position.role === 'student' &&
+    position.group_id &&
+    (!position.status || position.status === 'active');
+  const clickable = position.university_id && (position.role === 'admin' || studentGroup);
   const contents = html`<span class="university-icon" aria-hidden="true">▥</span
     ><span class="membership-info">
       <span class="membership-name">${escapeHtml(position.university_name)}</span>
@@ -41,8 +45,9 @@ export const membershipCard = (position) => {
     ? html`<button
         type="button"
         class="membership membership-button"
-        data-action="university"
+        data-action="${studentGroup ? 'group' : 'university'}"
         data-university-id="${escapeHtml(position.university_id)}"
+        ${studentGroup ? `data-group-id="${escapeHtml(position.group_id)}"` : ''}
       >
         ${contents}
       </button>`

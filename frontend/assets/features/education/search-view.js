@@ -26,22 +26,33 @@ export function renderEducationSearchResults(state) {
       aria-label="${groups ? 'Найденные группы' : 'Найденные программы'}"
     >
       ${items
-        .map(
-          (item) =>
-            html`<li class="university-search-item">
-              <span class="university-search-item-icon" aria-hidden="true"
-                >${icon(groups ? 'people' : 'document')}</span
-              >
-              <div>
-                <strong>${escapeHtml(item.name)}</strong>
-                ${groups ? html`<p>Программа: ${escapeHtml(item.program_name ?? 'Не указана')}</p>` : ''}
-                <p>
-                  Факультеты:
-                  ${escapeHtml(item.facultet_names.length ? item.facultet_names.join(', ') : 'Не указаны')}
-                </p>
-              </div>
-            </li>`,
-        )
+        .map((item) => {
+          const contents = html`
+            <span class="university-search-item-icon" aria-hidden="true"
+              >${icon(groups ? 'people' : 'document')}</span
+            >
+            <div>
+              <strong>${escapeHtml(item.name)}</strong>
+              ${groups ? html`<p>Программа: ${escapeHtml(item.program_name ?? 'Не указана')}</p>` : ''}
+              <p>
+                Факультеты:
+                ${escapeHtml(item.facultet_names.length ? item.facultet_names.join(', ') : 'Не указаны')}
+              </p>
+            </div>
+          `;
+          return groups
+            ? html`<li>
+                <button
+                  type="button"
+                  class="university-search-item education-group-link"
+                  data-action="group"
+                  data-group-id="${escapeHtml(item.id)}"
+                >
+                  ${contents}
+                </button>
+              </li>`
+            : html`<li class="university-search-item">${contents}</li>`;
+        })
         .join('')}
     </ul>`;
 }

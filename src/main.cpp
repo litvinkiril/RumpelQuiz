@@ -38,6 +38,8 @@
 #include "user/profile/service/profile_service.hpp"
 #include "education/handlers/get_university_admins_handler.hpp"
 #include "education/service/education_service.hpp"
+#include "education/info/handlers/get_group_members_handler.hpp"
+#include "education/info/service/education_info_service.hpp"
 #include "education/handlers/search_university_people_handler.hpp"
 #include "education/structure/handlers/get_faculties_handler.hpp"
 #include "education/structure/handlers/get_programs_handler.hpp"
@@ -134,6 +136,8 @@ int main(int argc, char* argv[]) {
           .Append<RumpelQuiz::ProfileService>()
           .Append<RumpelQuiz::GetProfileHandler>()
           .Append<RumpelQuiz::EducationService>()
+          .Append<RumpelQuiz::EducationInfoService>()
+          .Append<RumpelQuiz::GetGroupMembersHandler>()
           .Append<RumpelQuiz::EducationStructureService>()
           .Append<RumpelQuiz::EducationSearchService>()
           .Append<RumpelQuiz::SearchProgramsHandler>()

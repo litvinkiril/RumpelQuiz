@@ -45,6 +45,9 @@ add_library(
     src/user/profile/repository/profile_repository.cpp
     src/education/repository/education_repository.cpp
     src/education/service/education_service.cpp
+    src/education/info/handlers/get_group_members_handler.cpp
+    src/education/info/service/education_info_service.cpp
+    src/education/info/repository/education_info_repository.cpp
     src/education/structure/service/education_structure_service.cpp
     src/education/structure/repository/education_structure_repository.cpp
     src/education/structure/handlers/get_faculties_handler.cpp

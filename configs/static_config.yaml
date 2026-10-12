@@ -129,6 +129,14 @@ components_manager:
 
         education-structure-service: {}
 
+        education-info-service: {}
+
+        handler-get-group-members:
+            path: /v1/education/groups/{group_id}/members
+            method: GET
+            task_processor: main-task-processor
+            response_data_size_log_limit: 0
+
         education-search-service: {}
 
         handler-search-programs:
